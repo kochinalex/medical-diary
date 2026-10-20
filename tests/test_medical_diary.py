@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.database import (
-    init_db, get_profiles, get_profile, add_profile, delete_profile,
+    init_db, get_profiles, get_profile, add_profile, update_profile, delete_profile,
     get_all_records, add_record, add_biomarker, get_biomarker_history,
     get_all_reminders
 )
@@ -62,6 +62,36 @@ def test_family_profiles_and_scoped_records():
     delete_profile(spouse_id)
     assert get_profile(spouse_id) == {}
 
+def test_profile_update():
+    init_db()
+    test_id = add_profile(
+        name="Test Person",
+        role="Self",
+        birth_date="1995-01-01",
+        blood_type="B+"
+    )
+    assert test_id > 0
+    update_profile(test_id, {
+        "name": "Updated Person",
+        "role": "Father",
+        "birth_date": "1994-02-02",
+        "gender": "male",
+        "blood_type": "AB+",
+        "allergies": "Pollen, Dust",
+        "chronic_conditions": "None",
+        "current_medications": "Vitamin D",
+        "emergency_contact": "Emergency: 555-0199",
+        "avatar_color": "#3b82f6"
+    })
+    updated = get_profile(test_id)
+    assert updated["name"] == "Updated Person"
+    assert updated["role"] == "Father"
+    assert updated["blood_type"] == "AB+"
+    assert updated["allergies"] == "Pollen, Dust"
+
+    delete_profile(test_id)
+    assert get_profile(test_id) == {}
+
 def test_i18n_dictionaries():
     for lang in ["en", "ru", "sr"]:
         t = get_translations(lang)
@@ -69,6 +99,10 @@ def test_i18n_dictionaries():
         assert "timeline_tab" in t
         assert "cat_visit" in t
         assert "emergency_card_title" in t
+        assert "search_placeholder" in t
+        assert "sort_newest" in t
+        assert "sort_oldest" in t
+        assert "edit_profile_btn" in t
         assert len(t["cat_visit"]) > 0
 
 def test_pediatric_vs_adult_advisory():

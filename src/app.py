@@ -209,6 +209,34 @@ async def create_family_member(
     )
     return {"status": "success", "profile_id": new_id}
 
+@app.post("/api/profiles/{profile_id}")
+async def update_family_member(
+    profile_id: int,
+    name: str = Form(...),
+    role: str = Form("Self"),
+    birth_date: Optional[str] = Form(""),
+    gender: Optional[str] = Form("other"),
+    blood_type: Optional[str] = Form(""),
+    allergies: Optional[str] = Form(""),
+    chronic_conditions: Optional[str] = Form(""),
+    current_medications: Optional[str] = Form(""),
+    emergency_contact: Optional[str] = Form(""),
+    avatar_color: Optional[str] = Form("#0d9488")
+):
+    update_profile(profile_id, {
+        "name": name,
+        "role": role,
+        "birth_date": birth_date or "",
+        "gender": gender or "other",
+        "blood_type": blood_type or "",
+        "allergies": allergies or "",
+        "chronic_conditions": chronic_conditions or "",
+        "current_medications": current_medications or "",
+        "emergency_contact": emergency_contact or "",
+        "avatar_color": avatar_color or "#0d9488"
+    })
+    return {"status": "success", "profile_id": profile_id}
+
 @app.delete("/api/profiles/{profile_id}")
 async def remove_family_member(profile_id: int):
     success = delete_profile(profile_id)

@@ -41,9 +41,17 @@
           </div>
           <div>
             <h1 class="font-bold text-base leading-tight tracking-tight">{{ t.app_title }}</h1>
-            <p class="text-[11px] text-teal-100 font-medium leading-none mt-0.5">
-              {{ current_profile.name }} {% if current_profile.role %}• <span class="opacity-90">{{ current_profile.role }}</span>{% endif %}
-            </p>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <p class="text-[11px] text-teal-100 font-medium leading-none">
+                {{ current_profile.name }} {% if current_profile.role %}• <span class="opacity-90">{{ current_profile.role }}</span>{% endif %}
+              </p>
+              {% if not is_all_family and current_profile.id %}
+              <button onclick="openEditProfileModal()" title="{{ t.edit_profile_btn }}" class="text-teal-100 hover:text-white bg-white/10 hover:bg-white/20 rounded px-1.5 py-0.5 transition text-[10px] flex items-center gap-1 leading-none">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>{{ t.edit_profile_btn }}</span>
+              </button>
+              {% endif %}
+            </div>
           </div>
         </div>
 
@@ -109,6 +117,22 @@
 
       <!-- ================= TAB 1: TIMELINE ================= -->
       <section id="tabTimeline" class="tab-content active space-y-3.5">
+        <!-- Search & Sort Controls -->
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" id="timelineSearchInput" oninput="applyTimelineFilters()" placeholder="{{ t.search_placeholder }}" class="w-full pl-8 pr-7 py-2 bg-white rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-xs">
+            <button id="clearSearchBtn" onclick="clearTimelineSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-0.5">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <button id="sortOrderBtn" onclick="toggleSortOrder()" title="Toggle Date Sort Order" class="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold shadow-xs transition flex-shrink-0">
+            <i id="sortIcon" class="fa-solid fa-arrow-down-wide-short text-teal-600"></i>
+            <span id="sortLabel">{{ t.sort_newest }}</span>
+          </button>
+        </div>
+
         <!-- Category Filter Pills -->
         <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
           <button onclick="filterTimeline('all', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-teal-600 text-white shadow-sm">{{ t.filter_all }}</button>
@@ -122,7 +146,7 @@
         <!-- Timeline Items List -->
         <div id="timelineContainer" class="space-y-3 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-slate-200">
           {% for r in records %}
-          <div class="timeline-item relative pl-8" data-category="{{ r.category }}">
+          <div class="timeline-item relative pl-8" data-category="{{ r.category }}" data-date="{{ r.event_date }}">
             <!-- Dot Icon -->
             <div class="absolute left-1.5 top-2 -translate-x-1/2 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] shadow-sm
               {% if r.category == 'visit' %} bg-blue-500 text-white
@@ -205,6 +229,12 @@
             </div>
           </div>
           {% endfor %}
+        </div>
+
+        <!-- No Records Found Empty State -->
+        <div id="noRecordsFoundMsg" class="hidden p-8 text-center bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs shadow-xs">
+          <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-300 block"></i>
+          <p class="font-medium text-slate-600">{{ t.no_records_found }}</p>
         </div>
       </section>
 
@@ -541,6 +571,88 @@
     </div>
   </div>
 
+  <!-- ================= MODAL: EDIT PROFILE ================= -->
+  <div id="editProfileModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+          <i class="fa-solid fa-user-pen text-teal-600"></i> {{ t.edit_profile_title }}
+        </h3>
+        <button onclick="closeEditProfileModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="editProfileForm" onsubmit="submitEditProfile(event)" class="mt-3 space-y-2.5 text-xs">
+        <input type="hidden" id="editProfileId" value="{{ raw_profile.id if raw_profile else 1 }}">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">{{ t.member_name }} *</label>
+          <input type="text" id="editMemName" required value="{{ raw_profile.name if raw_profile else '' }}" class="w-full p-2 rounded-lg border border-slate-300">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">{{ t.role_label }} *</label>
+            <select id="editMemRole" class="w-full p-2 rounded-lg border border-slate-300">
+              <option value="Self" {% if raw_profile and raw_profile.role == 'Self' %}selected{% endif %}>Self</option>
+              <option value="Mother" {% if raw_profile and raw_profile.role == 'Mother' %}selected{% endif %}>Mother</option>
+              <option value="Father" {% if raw_profile and raw_profile.role == 'Father' %}selected{% endif %}>Father</option>
+              <option value="Child" {% if raw_profile and raw_profile.role == 'Child' %}selected{% endif %}>Child</option>
+              <option value="Spouse" {% if raw_profile and raw_profile.role == 'Spouse' %}selected{% endif %}>Spouse / Partner</option>
+              <option value="Parent" {% if raw_profile and raw_profile.role == 'Parent' %}selected{% endif %}>Parent</option>
+              <option value="Other" {% if raw_profile and raw_profile.role == 'Other' %}selected{% endif %}>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">{{ t.date_label }} DOB</label>
+            <input type="date" id="editMemDob" value="{{ raw_profile.birth_date if raw_profile else '' }}" class="w-full p-2 rounded-lg border border-slate-300">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">{{ t.blood_group }}</label>
+            <input type="text" id="editMemBlood" value="{{ raw_profile.blood_type if raw_profile else '' }}" placeholder="e.g. A+" class="w-full p-2 rounded-lg border border-slate-300">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Avatar Color</label>
+            <select id="editMemColor" class="w-full p-2 rounded-lg border border-slate-300">
+              <option value="#0d9488" {% if raw_profile and raw_profile.avatar_color == '#0d9488' %}selected{% endif %}>Teal</option>
+              <option value="#3b82f6" {% if raw_profile and raw_profile.avatar_color == '#3b82f6' %}selected{% endif %}>Blue</option>
+              <option value="#ec4899" {% if raw_profile and raw_profile.avatar_color == '#ec4899' %}selected{% endif %}>Pink</option>
+              <option value="#10b981" {% if raw_profile and raw_profile.avatar_color == '#10b981' %}selected{% endif %}>Green</option>
+              <option value="#8b5cf6" {% if raw_profile and raw_profile.avatar_color == '#8b5cf6' %}selected{% endif %}>Purple</option>
+              <option value="#f59e0b" {% if raw_profile and raw_profile.avatar_color == '#f59e0b' %}selected{% endif %}>Amber</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">{{ t.critical_allergies }}</label>
+          <input type="text" id="editMemAllergies" value="{{ raw_profile.allergies if raw_profile else '' }}" placeholder="e.g. Penicillin, Peanuts" class="w-full p-2 rounded-lg border border-slate-300">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">{{ t.chronic_conditions }}</label>
+          <input type="text" id="editMemConditions" value="{{ raw_profile.chronic_conditions if raw_profile else '' }}" placeholder="e.g. Asthma, Hypertension" class="w-full p-2 rounded-lg border border-slate-300">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">{{ t.current_medications }}</label>
+          <input type="text" id="editMemMeds" value="{{ raw_profile.current_medications if raw_profile else '' }}" placeholder="e.g. Vitamin D3, Levothyroxine" class="w-full p-2 rounded-lg border border-slate-300">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">{{ t.emergency_contact }}</label>
+          <input type="text" id="editMemEmergency" value="{{ raw_profile.emergency_contact if raw_profile else '' }}" placeholder="Name & Phone number" class="w-full p-2 rounded-lg border border-slate-300">
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="closeEditProfileModal()" class="px-3 py-1.5 font-medium text-slate-600 hover:bg-slate-100 rounded-lg">{{ t.cancel_btn }}</button>
+          <button type="submit" class="px-4 py-1.5 font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm">{{ t.save_changes }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ================= MODAL: ADD REMINDER ================= -->
   <div id="addReminderModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl overflow-hidden">
@@ -632,9 +744,16 @@
         </div>
       </div>
 
-      <button onclick="window.print()" class="w-full mt-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-900 transition flex items-center justify-center gap-1">
-        <i class="fa-solid fa-print"></i> {{ t.print_card }}
-      </button>
+      <div class="mt-4 flex gap-2">
+        <button onclick="window.print()" class="flex-1 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-900 transition flex items-center justify-center gap-1">
+          <i class="fa-solid fa-print"></i> {{ t.print_card }}
+        </button>
+        {% if not is_all_family and current_profile.id %}
+        <button onclick="toggleEmergencyModal(); openEditProfileModal();" class="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200 transition flex items-center justify-center gap-1">
+          <i class="fa-solid fa-pen-to-square"></i> {{ t.edit_profile_btn }}
+        </button>
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -670,22 +789,83 @@
       window.location.href = url.toString();
     }
 
-    // Timeline Filtering
+    // Timeline Filtering, Searching, and Sorting
+    let currentCategoryFilter = 'all';
+    let currentSortOrder = 'newest';
+
     function filterTimeline(category, btn) {
+      currentCategoryFilter = category;
       document.querySelectorAll('.filter-btn').forEach(b => {
         b.classList.remove('bg-teal-600', 'text-white');
         b.classList.add('bg-slate-100', 'text-slate-600');
       });
       btn.classList.remove('bg-slate-100', 'text-slate-600');
       btn.classList.add('bg-teal-600', 'text-white');
+      applyTimelineFilters();
+    }
 
-      document.querySelectorAll('.timeline-item').forEach(item => {
-        if (category === 'all' || item.dataset.category === category) {
+    function applyTimelineFilters() {
+      const searchInput = document.getElementById('timelineSearchInput');
+      const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      const clearBtn = document.getElementById('clearSearchBtn');
+      if (clearBtn) {
+        if (query.length > 0) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
+      }
+
+      const items = Array.from(document.querySelectorAll('.timeline-item'));
+      let visibleCount = 0;
+
+      items.forEach(item => {
+        const itemCat = item.dataset.category;
+        const catMatches = (currentCategoryFilter === 'all' || itemCat === currentCategoryFilter);
+        const textMatches = !query || item.textContent.toLowerCase().includes(query);
+
+        if (catMatches && textMatches) {
           item.style.display = 'block';
+          visibleCount++;
         } else {
           item.style.display = 'none';
         }
       });
+
+      const noMsg = document.getElementById('noRecordsFoundMsg');
+      if (noMsg) {
+        if (visibleCount === 0 && items.length > 0) {
+          noMsg.classList.remove('hidden');
+        } else {
+          noMsg.classList.add('hidden');
+        }
+      }
+    }
+
+    function clearTimelineSearch() {
+      const searchInput = document.getElementById('timelineSearchInput');
+      if (searchInput) {
+        searchInput.value = '';
+        applyTimelineFilters();
+        searchInput.focus();
+      }
+    }
+
+    function toggleSortOrder() {
+      currentSortOrder = (currentSortOrder === 'newest') ? 'oldest' : 'newest';
+      const container = document.getElementById('timelineContainer');
+      const items = Array.from(container.querySelectorAll('.timeline-item'));
+      const sortIcon = document.getElementById('sortIcon');
+      const sortLabel = document.getElementById('sortLabel');
+
+      if (currentSortOrder === 'newest') {
+        sortIcon.className = 'fa-solid fa-arrow-down-wide-short text-teal-600';
+        sortLabel.textContent = '{{ t.sort_newest }}';
+        items.sort((a, b) => (b.dataset.date || '').localeCompare(a.dataset.date || ''));
+      } else {
+        sortIcon.className = 'fa-solid fa-arrow-up-wide-short text-teal-600';
+        sortLabel.textContent = '{{ t.sort_oldest }}';
+        items.sort((a, b) => (a.dataset.date || '').localeCompare(b.dataset.date || ''));
+      }
+
+      items.forEach(item => container.appendChild(item));
     }
 
     // Desktop/Mobile Viewport Toggle
@@ -719,6 +899,12 @@
     }
     function closeAddMemberModal() {
       document.getElementById('addMemberModal').classList.add('hidden');
+    }
+    function openEditProfileModal() {
+      document.getElementById('editProfileModal').classList.remove('hidden');
+    }
+    function closeEditProfileModal() {
+      document.getElementById('editProfileModal').classList.add('hidden');
     }
     function openAddReminderModal() {
       document.getElementById('remDueDate').valueAsDate = new Date();
@@ -809,6 +995,33 @@
         switchProfile(data.profile_id);
       } else {
         alert('Error adding family member');
+      }
+    }
+
+    // Submit Edit Profile
+    async function submitEditProfile(e) {
+      e.preventDefault();
+      const profileId = document.getElementById('editProfileId').value;
+      const formData = new FormData();
+      formData.append('name', document.getElementById('editMemName').value);
+      formData.append('role', document.getElementById('editMemRole').value);
+      formData.append('birth_date', document.getElementById('editMemDob').value);
+      formData.append('blood_type', document.getElementById('editMemBlood').value);
+      formData.append('avatar_color', document.getElementById('editMemColor').value);
+      formData.append('allergies', document.getElementById('editMemAllergies').value);
+      formData.append('chronic_conditions', document.getElementById('editMemConditions').value);
+      formData.append('current_medications', document.getElementById('editMemMeds').value);
+      formData.append('emergency_contact', document.getElementById('editMemEmergency').value);
+
+      const res = await fetch(`/api/profiles/${profileId}`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        location.reload();
+      } else {
+        alert('Error updating profile');
       }
     }
 

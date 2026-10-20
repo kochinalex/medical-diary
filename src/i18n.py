@@ -71,7 +71,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "adult_mode": "Adult Health Profile",
         "flag_low": "LOW",
         "flag_high": "HIGH",
-        "flag_normal": "NORMAL"
+        "flag_normal": "NORMAL",
+        "search_placeholder": "Search events, diagnoses, doctors, notes...",
+        "sort_newest": "Newest",
+        "sort_oldest": "Oldest",
+        "edit_profile_btn": "Edit Profile",
+        "edit_profile_title": "Edit Personal Health Profile",
+        "save_changes": "Save Changes",
+        "no_records_found": "No records found matching your search."
     },
     "ru": {
         "app_title": "Медицинский Дневник",
@@ -142,7 +149,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "adult_mode": "Взрослый профиль",
         "flag_low": "НИЗКИЙ",
         "flag_high": "ВЫСОКИЙ",
-        "flag_normal": "НОРМА"
+        "flag_normal": "НОРМА",
+        "search_placeholder": "Поиск по диагнозам, врачам, заметкам...",
+        "sort_newest": "Сначала новые",
+        "sort_oldest": "Сначала старые",
+        "edit_profile_btn": "Редактировать профиль",
+        "edit_profile_title": "Редактирование медицинской карты",
+        "save_changes": "Сохранить изменения",
+        "no_records_found": "Записи по вашему запросу не найдены."
     },
     "sr": {
         "app_title": "Medicinski Dnevnik",
@@ -213,7 +227,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "adult_mode": "Profil za odrasle",
         "flag_low": "NISKO",
         "flag_high": "VISOKO",
-        "flag_normal": "NORMALNO"
+        "flag_normal": "NORMALNO",
+        "search_placeholder": "Pretraga po dijagnozama, lekarima, beleškama...",
+        "sort_newest": "Prvo najnovije",
+        "sort_oldest": "Prvo najstarije",
+        "edit_profile_btn": "Izmeni profil",
+        "edit_profile_title": "Izmena zdravstvenog kartona",
+        "save_changes": "Sačuvaj izmene",
+        "no_records_found": "Nema pronađenih zapisa za uneti upit."
     }
 }
 
