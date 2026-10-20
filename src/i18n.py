@@ -78,7 +78,13 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "edit_profile_btn": "Edit Profile",
         "edit_profile_title": "Edit Personal Health Profile",
         "save_changes": "Save Changes",
-        "no_records_found": "No records found matching your search."
+        "no_records_found": "No records found matching your search.",
+        "delete_record_btn": "Delete Record",
+        "delete_record_confirm": "Are you sure you want to delete this health record?",
+        "delete_reminder_btn": "Delete Reminder",
+        "delete_reminder_confirm": "Are you sure you want to delete this reminder?",
+        "clear_sample_btn": "Clear Sample Data",
+        "clear_sample_confirm": "This will remove pre-loaded sample records so you can start with a clean health diary. Continue?"
     },
     "ru": {
         "app_title": "Медицинский Дневник",
@@ -156,7 +162,13 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "edit_profile_btn": "Редактировать профиль",
         "edit_profile_title": "Редактирование медицинской карты",
         "save_changes": "Сохранить изменения",
-        "no_records_found": "Записи по вашему запросу не найдены."
+        "no_records_found": "Записи по вашему запросу не найдены.",
+        "delete_record_btn": "Удалить запись",
+        "delete_record_confirm": "Вы уверены, что хотите удалить эту медицинскую запись?",
+        "delete_reminder_btn": "Удалить напоминание",
+        "delete_reminder_confirm": "Вы уверены, что хотите удалить это напоминание?",
+        "clear_sample_btn": "Очистить демо-данные",
+        "clear_sample_confirm": "Это удалит демонстрационные записи, чтобы начать вести дневник с чистого листа. Продолжить?"
     },
     "sr": {
         "app_title": "Medicinski Dnevnik",
@@ -234,7 +246,13 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "edit_profile_btn": "Izmeni profil",
         "edit_profile_title": "Izmena zdravstvenog kartona",
         "save_changes": "Sačuvaj izmene",
-        "no_records_found": "Nema pronađenih zapisa za uneti upit."
+        "no_records_found": "Nema pronađenih zapisa za uneti upit.",
+        "delete_record_btn": "Obriši zapis",
+        "delete_record_confirm": "Da li ste sigurni da želite da obrišete ovaj zdravstveni zapis?",
+        "delete_reminder_btn": "Obriši podsetnik",
+        "delete_reminder_confirm": "Da li ste sigurni da želite da obrišete ovaj podsetnik?",
+        "clear_sample_btn": "Obriši probne podatke",
+        "clear_sample_confirm": "Ovo će ukloniti sve probne zapise kako biste započeli sa čistim kartonom. Nastaviti?"
     }
 }
 

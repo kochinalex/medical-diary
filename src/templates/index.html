@@ -131,6 +131,11 @@
             <i id="sortIcon" class="fa-solid fa-arrow-down-wide-short text-teal-600"></i>
             <span id="sortLabel">{{ t.sort_newest }}</span>
           </button>
+
+          <button onclick="confirmClearSampleData()" title="{{ t.clear_sample_btn }}" class="flex items-center gap-1.5 px-2.5 py-2 bg-white border border-slate-200 hover:border-rose-200 hover:bg-rose-50 text-slate-500 hover:text-rose-600 rounded-xl text-xs font-semibold shadow-xs transition flex-shrink-0">
+            <i class="fa-solid fa-broom text-[11px]"></i>
+            <span class="hidden sm:inline">{{ t.clear_sample_btn }}</span>
+          </button>
         </div>
 
         <!-- Category Filter Pills -->
@@ -188,7 +193,12 @@
                   </div>
                   <h3 class="font-semibold text-slate-900 text-sm leading-snug mt-0.5">{{ r.title }}</h3>
                 </div>
-                <span class="text-[11px] text-slate-400 font-medium whitespace-nowrap">{{ r.event_date }}</span>
+                <div class="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                  <span class="text-[11px] text-slate-400 font-medium whitespace-nowrap">{{ r.event_date }}</span>
+                  <button onclick="confirmDeleteRecord({{ r.id }})" title="{{ t.delete_record_btn }}" class="text-slate-300 hover:text-rose-600 transition p-1 rounded hover:bg-rose-50 leading-none">
+                    <i class="fa-regular fa-trash-can text-xs"></i>
+                  </button>
+                </div>
               </div>
 
               {% if r.provider or r.facility %}
@@ -344,6 +354,9 @@
                 <span><i class="fa-solid fa-repeat mr-1"></i> {{ rem.frequency | replace('_', ' ') }}</span>
               </div>
             </div>
+            <button onclick="confirmDeleteReminder({{ rem.id }})" title="{{ t.delete_reminder_btn }}" class="text-slate-300 hover:text-rose-600 transition p-1 rounded hover:bg-rose-50 leading-none">
+              <i class="fa-regular fa-trash-can text-xs"></i>
+            </button>
           </div>
           {% endfor %}
         </div>
@@ -935,6 +948,48 @@
       const text = document.getElementById('doctorBriefText').innerText;
       navigator.clipboard.writeText(text);
       alert('{{ t.copied_alert }}');
+    }
+
+    // Delete Record
+    async function confirmDeleteRecord(id) {
+      if (confirm('{{ t.delete_record_confirm }}')) {
+        const res = await fetch(`/api/records/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          location.reload();
+        } else {
+          alert('Error deleting record');
+        }
+      }
+    }
+
+    // Delete Reminder
+    async function confirmDeleteReminder(id) {
+      if (confirm('{{ t.delete_reminder_confirm }}')) {
+        const res = await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          location.reload();
+        } else {
+          alert('Error deleting reminder');
+        }
+      }
+    }
+
+    // Clear Sample Data
+    async function confirmClearSampleData() {
+      if (confirm('{{ t.clear_sample_confirm }}')) {
+        const formData = new FormData();
+        const currentPid = {{ profile_id or 0 }};
+        formData.append('profile_id', currentPid);
+        const res = await fetch('/api/records/clear-sample', {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          location.reload();
+        } else {
+          alert('Error clearing data');
+        }
+      }
     }
 
     // Submit Record

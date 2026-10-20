@@ -247,6 +247,45 @@ def delete_profile(profile_id: int) -> bool:
     conn.close()
     return True
 
+def delete_record(record_id: int) -> bool:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT file_path FROM records WHERE id = ?", (record_id,))
+    row = cursor.fetchone()
+    if row and row["file_path"] and os.path.exists(row["file_path"]):
+        try:
+            os.remove(row["file_path"])
+        except Exception:
+            pass
+    cursor.execute("DELETE FROM biomarkers WHERE record_id = ?", (record_id,))
+    cursor.execute("DELETE FROM records WHERE id = ?", (record_id,))
+    conn.commit()
+    conn.close()
+    return True
+
+def delete_reminder(reminder_id: int) -> bool:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM reminders WHERE id = ?", (reminder_id,))
+    conn.commit()
+    conn.close()
+    return True
+
+def clear_all_records(profile_id: Optional[int] = None) -> bool:
+    conn = get_connection()
+    cursor = conn.cursor()
+    if profile_id and profile_id > 0:
+        cursor.execute("DELETE FROM biomarkers WHERE profile_id = ?", (profile_id,))
+        cursor.execute("DELETE FROM records WHERE profile_id = ?", (profile_id,))
+        cursor.execute("DELETE FROM reminders WHERE profile_id = ?", (profile_id,))
+    else:
+        cursor.execute("DELETE FROM biomarkers")
+        cursor.execute("DELETE FROM records")
+        cursor.execute("DELETE FROM reminders")
+    conn.commit()
+    conn.close()
+    return True
+
 # Record CRUD with profile filtering
 def add_record(category: str, title: str, event_date: str, profile_id: int = 1,
                provider: str = "", facility: str = "", notes: str = "", file_path: str = "") -> int:

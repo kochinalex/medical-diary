@@ -9,9 +9,9 @@ from fastapi.templating import Jinja2Templates
 
 from .database import (
     init_db, get_profiles, get_profile, add_profile, update_profile, delete_profile,
-    get_all_records, add_record, add_biomarker,
+    get_all_records, add_record, add_biomarker, delete_record,
     get_biomarker_history, get_all_reminders, toggle_reminder,
-    add_reminder
+    add_reminder, delete_reminder, clear_all_records
 )
 from .advisory import generate_health_advisory
 from .parser import extract_text_from_pdf, parse_medical_document
@@ -260,6 +260,21 @@ async def create_reminder(
 ):
     rem_id = add_reminder(title, category, due_date, profile_id=profile_id, frequency=frequency, notes=notes or "")
     return {"status": "success", "reminder_id": rem_id}
+
+@app.delete("/api/records/{record_id}")
+async def remove_record(record_id: int):
+    delete_record(record_id)
+    return {"status": "success"}
+
+@app.delete("/api/reminders/{reminder_id}")
+async def remove_reminder(reminder_id: int):
+    delete_reminder(reminder_id)
+    return {"status": "success"}
+
+@app.post("/api/records/clear-sample")
+async def clear_sample_endpoint(profile_id: Optional[int] = Form(None)):
+    clear_all_records(profile_id=profile_id)
+    return {"status": "success"}
 
 @app.get("/api/export")
 async def export_data(profile_id: Optional[int] = None):

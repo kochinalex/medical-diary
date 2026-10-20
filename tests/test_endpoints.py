@@ -48,3 +48,31 @@ def test_export_endpoint():
     assert "profiles" in data
     assert "records" in data
     assert "reminders" in data
+
+def test_record_and_reminder_crud_endpoints():
+    # 1. Create a temporary record
+    res = client.post(
+        "/api/records",
+        data={
+            "profile_id": 1,
+            "category": "comment",
+            "title": "Temporary Test Note",
+            "event_date": "2026-10-20",
+            "notes": "Testing record removal"
+        }
+    )
+    assert res.status_code == 200
+
+    # Find the created record
+    export = client.get("/api/export?profile_id=1").json()
+    created = [r for r in export["records"] if r["title"] == "Temporary Test Note"]
+    assert len(created) > 0
+    rec_id = created[0]["id"]
+
+    # Delete the record
+    del_res = client.delete(f"/api/records/{rec_id}")
+    assert del_res.status_code == 200
+
+    # Verify deleted
+    export_after = client.get("/api/export?profile_id=1").json()
+    assert not any(r["id"] == rec_id for r in export_after["records"])
