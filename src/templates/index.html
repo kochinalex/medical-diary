@@ -1,74 +1,129 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Medical Diary - Personal Health Record & Advisor</title>
+  <title>{{ t.app_title }} - {{ current_profile.name }}</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     .mobile-frame {
-      max-width: 440px;
+      max-width: 460px;
       margin: 0 auto;
       min-height: 100vh;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
     }
     .full-width {
-      max-width: 1000px !important;
+      max-width: 1050px !important;
     }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans antialiased">
+<body class="bg-slate-100 text-slate-800 font-sans antialiased selection:bg-teal-500 selection:text-white">
+
+  <!-- Main Container -->
   <div id="appContainer" class="mobile-frame bg-white flex flex-col transition-all duration-300 relative border-x border-slate-200">
-    <header class="bg-gradient-to-r from-teal-600 to-emerald-600 text-white p-4 sticky top-0 z-30 shadow-md">
+
+    <!-- Top Header Bar -->
+    <header class="bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-600 text-white p-3.5 sticky top-0 z-30 shadow-md">
       <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-lg font-bold shadow-inner">
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base font-bold shadow-inner">
             <i class="fa-solid fa-heart-pulse"></i>
           </div>
           <div>
-            <h1 class="font-bold text-lg leading-tight tracking-tight">Medical Diary</h1>
-            <p class="text-xs text-teal-100 flex items-center gap-1">
-              <span>{{ profile.name }}</span>
-              <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
-              <span class="font-semibold text-white">{{ profile.blood_type }}</span>
+            <h1 class="font-bold text-base leading-tight tracking-tight">{{ t.app_title }}</h1>
+            <p class="text-[11px] text-teal-100 font-medium leading-none mt-0.5">
+              {{ current_profile.name }} {% if current_profile.role %}• <span class="opacity-90">{{ current_profile.role }}</span>{% endif %}
             </p>
           </div>
         </div>
-        <div class="flex items-center space-x-2">
-          <button onclick="toggleEmergencyModal()" title="Emergency ICE Card" class="px-2 py-1.5 bg-red-500/80 hover:bg-red-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm transition">
-            <i class="fa-solid fa-truck-medical"></i> ICE
+
+        <!-- Controls: Language, Screen Toggle, ICE -->
+        <div class="flex items-center space-x-1.5">
+          <!-- Language Selector -->
+          <div class="flex items-center bg-black/20 rounded-lg p-0.5 text-[11px] font-semibold">
+            <button onclick="setLanguage('en')" class="px-1.5 py-0.5 rounded {% if lang == 'en' %}bg-white text-teal-800 shadow-sm{% else %}text-white/80 hover:text-white{% endif %}">EN</button>
+            <button onclick="setLanguage('ru')" class="px-1.5 py-0.5 rounded {% if lang == 'ru' %}bg-white text-teal-800 shadow-sm{% else %}text-white/80 hover:text-white{% endif %}">RU</button>
+            <button onclick="setLanguage('sr')" class="px-1.5 py-0.5 rounded {% if lang == 'sr' %}bg-white text-teal-800 shadow-sm{% else %}text-white/80 hover:text-white{% endif %}">SR</button>
+          </div>
+
+          <!-- Emergency ICE Button -->
+          <button onclick="toggleEmergencyModal()" title="{{ t.emergency_card_title }}" class="px-2 py-1 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition">
+            <i class="fa-solid fa-truck-medical text-[11px]"></i> ICE
           </button>
-          <button onclick="toggleDesktopWidth()" title="Toggle Desktop View" class="p-2 bg-white/10 hover:bg-white/25 rounded-lg text-xs text-white transition">
+
+          <!-- Toggle Desktop View -->
+          <button onclick="toggleDesktopWidth()" title="Expand / Shrink Viewport" class="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs text-white transition">
             <i id="expandIcon" class="fa-solid fa-expand"></i>
           </button>
         </div>
       </div>
-      {% if profile.allergies %}
-      <div class="mt-2.5 py-1 px-2.5 bg-rose-900/40 rounded-md text-[11px] text-rose-100 flex items-center justify-between">
-        <span><i class="fa-solid fa-triangle-exclamation mr-1 text-rose-300"></i> Allergies: <strong>{{ profile.allergies }}</strong></span>
+
+      <!-- Quick Critical Allergy Pill if applicable -->
+      {% if current_profile.allergies %}
+      <div class="mt-2 py-1 px-2.5 bg-rose-900/40 rounded-md text-[11px] text-rose-100 flex items-center justify-between">
+        <span class="truncate"><i class="fa-solid fa-triangle-exclamation mr-1 text-rose-300"></i> {{ t.critical_allergies }}: <strong>{{ current_profile.allergies }}</strong></span>
+        {% if current_profile.blood_type %}<span class="font-bold ml-2 text-white">{{ current_profile.blood_type }}</span>{% endif %}
       </div>
       {% endif %}
     </header>
 
-    <main class="flex-1 pb-24 p-4 overflow-y-auto">
-      <!-- 1. TIMELINE TAB -->
-      <section id="tabTimeline" class="tab-content active space-y-4">
+    <!-- Family Member Avatars Bar (One-Tap Switcher) -->
+    <section class="bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar sticky top-[57px] z-20">
+      <!-- All Family Button -->
+      <button onclick="switchProfile(0)" class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border {% if is_all_family %}bg-teal-700 text-white border-teal-800 shadow-sm{% else %}bg-white text-slate-700 border-slate-200 hover:bg-slate-100{% endif %}">
+        <i class="fa-solid fa-users text-[11px]"></i>
+        <span>{{ t.all_family }}</span>
+      </button>
+
+      <!-- Profile Avatars -->
+      {% for p in profiles %}
+      <button onclick="switchProfile({{ p.id }})" class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border {% if profile_id == p.id %}bg-teal-600 text-white border-teal-700 shadow-sm ring-2 ring-teal-300{% else %}bg-white text-slate-700 border-slate-200 hover:bg-slate-100{% endif %}">
+        <span class="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] text-white" style="background-color: {{ p.avatar_color or '#0d9488' }};">
+          {% if p.role == 'Child' %}<i class="fa-solid fa-child text-[8px]"></i>
+          {% elif p.role == 'Mother' %}<i class="fa-solid fa-person-dress text-[8px]"></i>
+          {% else %}<i class="fa-solid fa-user text-[8px]"></i>{% endif %}
+        </span>
+        <span class="truncate max-w-[100px]">{{ p.name }}</span>
+      </button>
+      {% endfor %}
+
+      <!-- Add Member Button -->
+      <button onclick="openAddMemberModal()" title="{{ t.add_member }}" class="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition">
+        <i class="fa-solid fa-user-plus text-[10px]"></i>
+        <span>{{ t.add_member }}</span>
+      </button>
+    </section>
+
+    <!-- Main Content Tabs -->
+    <main class="flex-1 pb-24 p-3.5 overflow-y-auto">
+
+      <!-- ================= TAB 1: TIMELINE ================= -->
+      <section id="tabTimeline" class="tab-content active space-y-3.5">
+        <!-- Category Filter Pills -->
         <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
-          <button onclick="filterTimeline('all', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-teal-600 text-white shadow-sm">All</button>
-          <button onclick="filterTimeline('visit', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">Visits</button>
-          <button onclick="filterTimeline('test_result', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">Labs & Tests</button>
-          <button onclick="filterTimeline('sickness', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">Sickness</button>
-          <button onclick="filterTimeline('intervention', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">Surgeries</button>
-          <button onclick="filterTimeline('comment', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">Notes</button>
+          <button onclick="filterTimeline('all', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-teal-600 text-white shadow-sm">{{ t.filter_all }}</button>
+          <button onclick="filterTimeline('visit', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">{{ t.filter_visit }}</button>
+          <button onclick="filterTimeline('test_result', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">{{ t.filter_test_result }}</button>
+          <button onclick="filterTimeline('sickness', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">{{ t.filter_sickness }}</button>
+          <button onclick="filterTimeline('intervention', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">{{ t.filter_intervention }}</button>
+          <button onclick="filterTimeline('comment', this)" class="filter-btn px-3 py-1.5 rounded-full font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">{{ t.filter_comment }}</button>
         </div>
 
+        <!-- Timeline Items List -->
         <div id="timelineContainer" class="space-y-3 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-slate-200">
           {% for r in records %}
           <div class="timeline-item relative pl-8" data-category="{{ r.category }}">
+            <!-- Dot Icon -->
             <div class="absolute left-1.5 top-2 -translate-x-1/2 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] shadow-sm
               {% if r.category == 'visit' %} bg-blue-500 text-white
               {% elif r.category == 'test_result' %} bg-emerald-500 text-white
@@ -82,18 +137,32 @@
               {% else %}<i class="fa-solid fa-notes-medical"></i>{% endif %}
             </div>
 
-            <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm hover:shadow transition">
+            <!-- Card -->
+            <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:shadow transition">
               <div class="flex items-start justify-between">
                 <div>
-                  <span class="text-[10px] font-semibold uppercase tracking-wider
-                    {% if r.category == 'visit' %} text-blue-600
-                    {% elif r.category == 'test_result' %} text-emerald-600
-                    {% elif r.category == 'sickness' %} text-amber-600
-                    {% elif r.category == 'intervention' %} text-purple-600
-                    {% else %} text-slate-500 {% endif %}">
-                    {{ r.category | replace('_', ' ') }}
-                  </span>
-                  <h3 class="font-semibold text-slate-900 text-sm leading-snug">{{ r.title }}</h3>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[10px] font-bold uppercase tracking-wider
+                      {% if r.category == 'visit' %} text-blue-600
+                      {% elif r.category == 'test_result' %} text-emerald-600
+                      {% elif r.category == 'sickness' %} text-amber-600
+                      {% elif r.category == 'intervention' %} text-purple-600
+                      {% else %} text-slate-500 {% endif %}">
+                      {% if r.category == 'visit' %}{{ t.cat_visit }}
+                      {% elif r.category == 'test_result' %}{{ t.cat_test_result }}
+                      {% elif r.category == 'sickness' %}{{ t.cat_sickness }}
+                      {% elif r.category == 'intervention' %}{{ t.cat_intervention }}
+                      {% else %}{{ t.cat_comment }}{% endif %}
+                    </span>
+
+                    <!-- Family Member Tag in All Family view -->
+                    {% if is_all_family and r.member_name %}
+                    <span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold text-white shadow-xs" style="background-color: {{ r.member_color or '#0d9488' }};">
+                      <i class="fa-solid fa-user text-[8px]"></i> {{ r.member_name }}
+                    </span>
+                    {% endif %}
+                  </div>
+                  <h3 class="font-semibold text-slate-900 text-sm leading-snug mt-0.5">{{ r.title }}</h3>
                 </div>
                 <span class="text-[11px] text-slate-400 font-medium whitespace-nowrap">{{ r.event_date }}</span>
               </div>
@@ -106,14 +175,14 @@
               {% endif %}
 
               {% if r.notes %}
-              <p class="text-xs text-slate-600 mt-2 bg-slate-50 rounded-lg p-2 leading-relaxed border border-slate-100">
+              <p class="text-xs text-slate-600 mt-1.5 bg-slate-50 rounded-lg p-2 leading-relaxed border border-slate-100">
                 {{ r.notes }}
               </p>
               {% endif %}
 
+              <!-- Biomarkers -->
               {% if r.biomarkers and r.biomarkers|length > 0 %}
-              <div class="mt-2.5 pt-2 border-t border-slate-100">
-                <span class="text-[11px] font-medium text-slate-500 block mb-1.5">Lab Results:</span>
+              <div class="mt-2 pt-2 border-t border-slate-100">
                 <div class="grid grid-cols-2 gap-1.5">
                   {% for b in r.biomarkers %}
                   <div class="flex items-center justify-between text-xs p-1.5 rounded-lg border
@@ -130,7 +199,7 @@
 
               {% if r.file_path %}
               <div class="mt-2 text-[11px] text-teal-700 flex items-center gap-1 font-medium">
-                <i class="fa-solid fa-paperclip"></i> Attached Document
+                <i class="fa-solid fa-paperclip"></i> {{ t.attached_doc }}
               </div>
               {% endif %}
             </div>
@@ -139,18 +208,18 @@
         </div>
       </section>
 
-      <!-- 2. BIOMARKERS TAB -->
-      <section id="tabBiomarkers" class="tab-content space-y-4">
-        <div class="bg-gradient-to-br from-emerald-500 to-teal-700 text-white rounded-2xl p-4 shadow-sm">
+      <!-- ================= TAB 2: BIOMARKERS ================= -->
+      <section id="tabBiomarkers" class="tab-content space-y-3.5">
+        <div class="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-2xl p-4 shadow-sm">
           <h2 class="font-bold text-base flex items-center gap-2">
-            <i class="fa-solid fa-chart-line"></i> Biomarker Trends
+            <i class="fa-solid fa-chart-line"></i> {{ t.biomarker_trends }}
           </h2>
-          <p class="text-xs text-emerald-100 mt-0.5">Track your blood panels, hormones, and vitals over time.</p>
+          <p class="text-xs text-emerald-100 mt-0.5">{{ t.biomarker_desc }}</p>
         </div>
 
         <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
           <div class="flex items-center justify-between mb-2">
-            <label for="biomarkerSelect" class="text-xs font-semibold text-slate-700">Select Biomarker:</label>
+            <label for="biomarkerSelect" class="text-xs font-semibold text-slate-700">{{ t.select_biomarker }}</label>
             <select id="biomarkerSelect" onchange="updateChart()" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700">
               {% for b_name in biomarker_history.keys() %}
               <option value="{{ b_name }}">{{ b_name }}</option>
@@ -162,7 +231,7 @@
           </div>
         </div>
 
-        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400 mt-3">Latest Recorded Values</h3>
+        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400 mt-3">{{ t.latest_values }}</h3>
         <div class="grid grid-cols-1 gap-2">
           {% for b_name, history in biomarker_history.items() %}
           {% set latest = history[-1] %}
@@ -178,7 +247,9 @@
                   {% if latest.flag == 'LOW' %} bg-amber-100 text-amber-700
                   {% elif latest.flag == 'HIGH' %} bg-rose-100 text-rose-700
                   {% else %} bg-emerald-100 text-emerald-700 {% endif %}">
-                  {{ latest.flag }}
+                  {% if latest.flag == 'LOW' %}{{ t.flag_low }}
+                  {% elif latest.flag == 'HIGH' %}{{ t.flag_high }}
+                  {% else %}{{ t.flag_normal }}{% endif %}
                 </span>
               </div>
             </div>
@@ -187,22 +258,22 @@
         </div>
       </section>
 
-      <!-- 3. CALENDAR & REMINDERS TAB -->
-      <section id="tabReminders" class="tab-content space-y-4">
+      <!-- ================= TAB 3: CALENDAR ================= -->
+      <section id="tabReminders" class="tab-content space-y-3.5">
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="font-bold text-base text-slate-900">Health Calendar</h2>
-            <p class="text-xs text-slate-500">Scheduled screenings, vaccinations & retests</p>
+            <h2 class="font-bold text-base text-slate-900">{{ t.health_calendar }}</h2>
+            <p class="text-xs text-slate-500">{{ t.calendar_desc }}</p>
           </div>
           <button onclick="openAddReminderModal()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm">
-            <i class="fa-solid fa-plus"></i> New Reminder
+            <i class="fa-solid fa-plus"></i> {{ t.new_reminder }}
           </button>
         </div>
 
         {% if advisory.alerts|length > 0 %}
         <div class="space-y-2">
           {% for alert in advisory.alerts %}
-          <div class="p-3 rounded-xl border flex items-start gap-3
+          <div class="p-3 rounded-xl border flex items-start gap-2.5
             {% if alert.status == 'overdue' %} bg-rose-50 border-rose-200 text-rose-900
             {% else %} bg-amber-50 border-amber-200 text-amber-900 {% endif %}">
             <i class="fa-solid fa-clock text-base mt-0.5
@@ -227,12 +298,19 @@
           <div class="p-3.5 flex items-start gap-3 hover:bg-slate-50 transition">
             <input type="checkbox" onchange="toggleReminder({{ rem.id }})" {% if rem.completed %}checked{% endif %} class="mt-1 w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300 cursor-pointer">
             <div class="flex-1">
-              <h4 class="text-sm font-semibold {% if rem.completed %}line-through text-slate-400{% else %}text-slate-800{% endif %}">
-                {{ rem.title }}
-              </h4>
+              <div class="flex items-center gap-2">
+                <h4 class="text-sm font-semibold {% if rem.completed %}line-through text-slate-400{% else %}text-slate-800{% endif %}">
+                  {{ rem.title }}
+                </h4>
+                {% if is_all_family and rem.member_name %}
+                <span class="text-[9px] px-1.5 py-0.2 rounded-full font-bold text-white" style="background-color: {{ rem.member_color or '#0d9488' }};">
+                  {{ rem.member_name }}
+                </span>
+                {% endif %}
+              </div>
               <p class="text-xs text-slate-500 mt-0.5">{{ rem.notes }}</p>
               <div class="flex items-center gap-3 mt-1.5 text-[11px] text-slate-400">
-                <span><i class="fa-regular fa-calendar mr-1"></i> Due: {{ rem.due_date }}</span>
+                <span><i class="fa-regular fa-calendar mr-1"></i> {{ rem.due_date }}</span>
                 <span><i class="fa-solid fa-repeat mr-1"></i> {{ rem.frequency | replace('_', ' ') }}</span>
               </div>
             </div>
@@ -241,16 +319,16 @@
         </div>
       </section>
 
-      <!-- 4. PROACTIVE ADVISORY TAB -->
-      <section id="tabAdvisor" class="tab-content space-y-4">
+      <!-- ================= TAB 4: ADVICE ================= -->
+      <section id="tabAdvisor" class="tab-content space-y-3.5">
         <div class="bg-gradient-to-r from-indigo-600 to-teal-600 text-white rounded-2xl p-4 shadow-sm">
           <div class="flex items-center gap-2">
             <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-sm font-bold">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
             </div>
             <div>
-              <h2 class="font-bold text-base leading-tight">Clinical Insights & Advice</h2>
-              <p class="text-xs text-indigo-100">Proactive analysis based on your records & guidelines</p>
+              <h2 class="font-bold text-base leading-tight">{{ t.clinical_insights }}</h2>
+              <p class="text-xs text-indigo-100">{{ current_profile.name }} • {% if current_profile.role == 'Child' %}{{ t.pediatric_mode }}{% else %}{{ t.adult_mode }}{% endif %}</p>
             </div>
           </div>
         </div>
@@ -268,163 +346,300 @@
             <h3 class="font-bold text-slate-900 text-sm mt-1">{{ ins.title }}</h3>
             <p class="text-xs text-slate-600 mt-1 leading-relaxed">{{ ins.message }}</p>
             <div class="mt-2.5 p-2.5 bg-teal-50 border border-teal-100 rounded-lg text-xs text-teal-900 leading-relaxed">
-              <i class="fa-solid fa-lightbulb text-teal-600 mr-1"></i> <strong>Recommendation:</strong> {{ ins.advice }}
+              <i class="fa-solid fa-lightbulb text-teal-600 mr-1"></i> <strong>{{ t.recommendation }}:</strong> {{ ins.advice }}
             </div>
           </div>
           {% endfor %}
         </div>
 
+        <!-- Pre-visit Doctor Brief -->
         <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
           <div class="flex items-center justify-between mb-2">
             <h3 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
-              <i class="fa-solid fa-file-medical text-teal-600"></i> Pre-Visit Doctor Brief
+              <i class="fa-solid fa-file-medical text-teal-600"></i> {{ t.doctor_brief }}
             </h3>
             <button onclick="copyBrief()" class="text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 font-medium transition">
-              <i class="fa-regular fa-copy mr-1"></i> Copy
+              <i class="fa-regular fa-copy mr-1"></i> {{ t.copy_btn }}
             </button>
           </div>
-          <p class="text-xs text-slate-500 mb-3">Concise 1-page summary to present to your doctor.</p>
+          <p class="text-xs text-slate-500 mb-3">{{ t.doctor_brief_desc }}</p>
           <pre id="doctorBriefText" class="text-[11px] bg-slate-900 text-emerald-400 p-3 rounded-lg overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed">{{ advisory.doctor_brief }}</pre>
         </div>
       </section>
+
     </main>
 
-    <!-- Floating Add Button -->
+    <!-- Floating Action Button (Add Record) -->
     <div class="fixed bottom-20 right-6 z-40">
       <button onclick="openAddRecordModal()" class="w-12 h-12 rounded-full bg-teal-600 hover:bg-teal-700 text-white shadow-lg flex items-center justify-center text-xl transition-transform active:scale-95">
         <i class="fa-solid fa-plus"></i>
       </button>
     </div>
 
-    <!-- Bottom Nav -->
+    <!-- Bottom Navigation Bar -->
     <nav class="bg-white/95 backdrop-blur-md border-t border-slate-200 flex justify-around p-2 sticky bottom-0 z-30 shadow-lg">
       <button onclick="switchTab('tabTimeline', this)" class="nav-btn flex flex-col items-center text-teal-600 font-semibold text-[11px] py-1 px-3">
-        <i class="fa-solid fa-clock-rotate-left text-base mb-0.5"></i> Timeline
+        <i class="fa-solid fa-clock-rotate-left text-base mb-0.5"></i> {{ t.timeline_tab }}
       </button>
       <button onclick="switchTab('tabBiomarkers', this)" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-600 font-medium text-[11px] py-1 px-3">
-        <i class="fa-solid fa-chart-simple text-base mb-0.5"></i> Labs & Vitals
+        <i class="fa-solid fa-chart-simple text-base mb-0.5"></i> {{ t.biomarkers_tab }}
       </button>
       <button onclick="switchTab('tabReminders', this)" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-600 font-medium text-[11px] py-1 px-3">
-        <i class="fa-regular fa-calendar-check text-base mb-0.5"></i> Calendar
+        <i class="fa-regular fa-calendar-check text-base mb-0.5"></i> {{ t.calendar_tab }}
       </button>
       <button onclick="switchTab('tabAdvisor', this)" class="nav-btn flex flex-col items-center text-slate-400 hover:text-slate-600 font-medium text-[11px] py-1 px-3">
-        <i class="fa-solid fa-wand-magic-sparkles text-base mb-0.5"></i> Advice
+        <i class="fa-solid fa-wand-magic-sparkles text-base mb-0.5"></i> {{ t.advisory_tab }}
       </button>
     </nav>
+
   </div>
 
-  <!-- ADD RECORD MODAL -->
+  <!-- ================= MODAL: ADD RECORD ================= -->
   <div id="addRecordModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
       <div class="p-4 bg-teal-600 text-white flex items-center justify-between">
-        <h3 class="font-bold text-base"><i class="fa-solid fa-plus-circle mr-1"></i> Add Health Record</h3>
+        <h3 class="font-bold text-base"><i class="fa-solid fa-plus-circle mr-1"></i> {{ t.add_record_title }}</h3>
         <button onclick="closeAddRecordModal()" class="text-white/80 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <form id="recordForm" onsubmit="submitRecord(event)" class="p-4 space-y-3 overflow-y-auto flex-1">
+        <!-- Family Member Selector -->
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Record Category *</label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">{{ t.member_name }} *</label>
+          <select id="recordProfileId" required class="w-full text-xs p-2.5 rounded-lg border border-slate-300">
+            {% for p in profiles %}
+            <option value="{{ p.id }}" {% if p.id == profile_id or (is_all_family and loop.first) %}selected{% endif %}>{{ p.name }} ({{ p.role }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">{{ t.record_category }} *</label>
           <select id="recordCategory" required onchange="toggleBiomarkerInputs()" class="w-full text-xs p-2.5 rounded-lg border border-slate-300">
-            <option value="visit">Doctor Visit / Consultation</option>
-            <option value="test_result">Lab Test Results / Blood Panel</option>
-            <option value="sickness">Sickness Episode / Symptoms</option>
-            <option value="intervention">Procedure / Surgery / Intervention</option>
-            <option value="comment">Free-Text Observation / Notes</option>
+            <option value="visit">{{ t.cat_visit }}</option>
+            <option value="test_result">{{ t.cat_test_result }}</option>
+            <option value="sickness">{{ t.cat_sickness }}</option>
+            <option value="intervention">{{ t.cat_intervention }}</option>
+            <option value="comment">{{ t.cat_comment }}</option>
           </select>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Date *</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">{{ t.date_label }} *</label>
             <input type="date" id="recordDate" required class="w-full text-xs p-2 rounded-lg border border-slate-300">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Doctor / Provider</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">{{ t.doctor_provider }}</label>
             <input type="text" id="recordProvider" placeholder="e.g. Dr. Vance" class="w-full text-xs p-2 rounded-lg border border-slate-300">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Title *</label>
-          <input type="text" id="recordTitle" required placeholder="e.g. Cardiology Review or Lipid Panel" class="w-full text-xs p-2 rounded-lg border border-slate-300">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">{{ t.title_label }} *</label>
+          <input type="text" id="recordTitle" required placeholder="e.g. Annual Checkup or CBC Panel" class="w-full text-xs p-2 rounded-lg border border-slate-300">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Clinic / Facility</label>
-          <input type="text" id="recordFacility" placeholder="e.g. Central Lab or City Hospital" class="w-full text-xs p-2 rounded-lg border border-slate-300">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">{{ t.clinic_facility }}</label>
+          <input type="text" id="recordFacility" placeholder="e.g. Central Diagnostics Lab" class="w-full text-xs p-2 rounded-lg border border-slate-300">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Notes & Findings</label>
-          <textarea id="recordNotes" rows="3" placeholder="Doctor's recommendations, prescriptions, diagnosis details..." class="w-full text-xs p-2 rounded-lg border border-slate-300"></textarea>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">{{ t.notes_findings }}</label>
+          <textarea id="recordNotes" rows="3" placeholder="Doctor's notes, prescriptions, diagnosis..." class="w-full text-xs p-2 rounded-lg border border-slate-300"></textarea>
         </div>
 
         <div id="biomarkerSection" class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 hidden">
-          <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-vial text-teal-600 mr-1"></i> Optional: Add Lab Biomarker</label>
+          <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-vial text-teal-600 mr-1"></i> {{ t.optional_lab }}</label>
           <div class="grid grid-cols-3 gap-2">
-            <input type="text" id="bmName" placeholder="Test Name (e.g. Ferritin)" class="text-xs p-1.5 rounded border border-slate-300">
-            <input type="number" step="any" id="bmValue" placeholder="Value (e.g. 24)" class="text-xs p-1.5 rounded border border-slate-300">
-            <input type="text" id="bmUnit" placeholder="Unit (e.g. ng/mL)" class="text-xs p-1.5 rounded border border-slate-300">
+            <input type="text" id="bmName" placeholder="{{ t.test_name }}" class="text-xs p-1.5 rounded border border-slate-300">
+            <input type="number" step="any" id="bmValue" placeholder="{{ t.test_value }}" class="text-xs p-1.5 rounded border border-slate-300">
+            <input type="text" id="bmUnit" placeholder="{{ t.test_unit }}" class="text-xs p-1.5 rounded border border-slate-300">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1"><i class="fa-solid fa-paperclip mr-1"></i> Attach Document or Photo (PDF / JPG / PNG)</label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1"><i class="fa-solid fa-paperclip mr-1"></i> {{ t.attach_doc }}</label>
           <input type="file" id="recordFile" accept=".pdf,image/*" class="w-full text-xs p-1.5 rounded-lg border border-slate-300">
         </div>
 
         <div class="pt-2 flex justify-end gap-2 border-t border-slate-100">
-          <button type="button" onclick="closeAddRecordModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-          <button type="submit" class="px-5 py-2 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm">Save Record</button>
+          <button type="button" onclick="closeAddRecordModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">{{ t.cancel_btn }}</button>
+          <button type="submit" class="px-5 py-2 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm">{{ t.save_btn }}</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- EMERGENCY ICE MODAL -->
+  <!-- ================= MODAL: ADD FAMILY MEMBER ================= -->
+  <div id="addMemberModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+          <i class="fa-solid fa-user-plus text-teal-600"></i> {{ t.add_member }}
+        </h3>
+        <button onclick="closeAddMemberModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="memberForm" onsubmit="submitNewMember(event)" class="mt-3 space-y-2.5 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">{{ t.member_name }} *</label>
+          <input type="text" id="memName" required placeholder="e.g. Leo or Dan" class="w-full p-2 rounded-lg border border-slate-300">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">{{ t.role_label }} *</label>
+            <select id="memRole" class="w-full p-2 rounded-lg border border-slate-300">
+              <option value="Child">Child</option>
+              <option value="Spouse">Spouse / Partner</option>
+              <option value="Parent">Parent</option>
+              <option value="Mother">Mother</option>
+              <option value="Father">Father</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">{{ t.date_label }} DOB</label>
+            <input type="date" id="memDob" class="w-full p-2 rounded-lg border border-slate-300">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">{{ t.blood_group }}</label>
+            <input type="text" id="memBlood" placeholder="e.g. A+" class="w-full p-2 rounded-lg border border-slate-300">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Avatar Color</label>
+            <select id="memColor" class="w-full p-2 rounded-lg border border-slate-300">
+              <option value="#3b82f6">Blue</option>
+              <option value="#ec4899">Pink</option>
+              <option value="#10b981">Green</option>
+              <option value="#8b5cf6">Purple</option>
+              <option value="#f59e0b">Amber</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">{{ t.critical_allergies }}</label>
+          <input type="text" id="memAllergies" placeholder="e.g. Peanuts, Penicillin" class="w-full p-2 rounded-lg border border-slate-300">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">{{ t.emergency_contact }}</label>
+          <input type="text" id="memEmergency" placeholder="Phone & Contact Name" class="w-full p-2 rounded-lg border border-slate-300">
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="closeAddMemberModal()" class="px-3 py-1.5 font-medium text-slate-600 hover:bg-slate-100 rounded-lg">{{ t.cancel_btn }}</button>
+          <button type="submit" class="px-4 py-1.5 font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm">{{ t.save_btn }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: ADD REMINDER ================= -->
+  <div id="addReminderModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+          <i class="fa-solid fa-plus-circle text-teal-600"></i> {{ t.new_reminder }}
+        </h3>
+        <button onclick="closeAddReminderModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="reminderForm" onsubmit="submitNewReminder(event)" class="mt-3 space-y-2.5 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">{{ t.member_name }} *</label>
+          <select id="remProfileId" required class="w-full p-2 rounded-lg border border-slate-300">
+            {% for p in profiles %}
+            <option value="{{ p.id }}" {% if p.id == profile_id or (is_all_family and loop.first) %}selected{% endif %}>{{ p.name }} ({{ p.role }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">{{ t.title_label }} *</label>
+          <input type="text" id="remTitle" required placeholder="e.g. Dental Cleaning or Booster" class="w-full p-2 rounded-lg border border-slate-300">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Due Date *</label>
+            <input type="date" id="remDueDate" required class="w-full p-2 rounded-lg border border-slate-300">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Category</label>
+            <select id="remCategory" class="w-full p-2 rounded-lg border border-slate-300">
+              <option value="screening">Screening</option>
+              <option value="vaccine">Vaccine</option>
+              <option value="lab_retest">Lab Retest</option>
+              <option value="doctor_visit">Doctor Visit</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Notes</label>
+          <input type="text" id="remNotes" placeholder="Additional details..." class="w-full p-2 rounded-lg border border-slate-300">
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="closeAddReminderModal()" class="px-3 py-1.5 font-medium text-slate-600 hover:bg-slate-100 rounded-lg">{{ t.cancel_btn }}</button>
+          <button type="submit" class="px-4 py-1.5 font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm">{{ t.save_btn }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: EMERGENCY ICE CARD ================= -->
   <div id="iceModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border-t-8 border-red-500">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
         <h3 class="font-bold text-base text-red-600 flex items-center gap-1.5">
-          <i class="fa-solid fa-truck-medical"></i> EMERGENCY HEALTH CARD
+          <i class="fa-solid fa-truck-medical"></i> {{ t.emergency_card_title }}
         </h3>
         <button onclick="toggleEmergencyModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="mt-4 space-y-3 text-xs">
         <div class="flex justify-between items-center p-2.5 bg-red-50 rounded-lg text-red-900">
-          <span class="font-semibold">Blood Group:</span>
-          <span class="font-black text-base">{{ profile.blood_type }}</span>
+          <span class="font-semibold">{{ t.blood_group }}:</span>
+          <span class="font-black text-base">{{ current_profile.blood_type or 'N/A' }}</span>
         </div>
         <div>
-          <span class="font-semibold text-slate-500 block">Patient Name & DOB:</span>
-          <p class="font-bold text-slate-800">{{ profile.name }} ({{ profile.birth_date }})</p>
+          <span class="font-semibold text-slate-500 block">{{ t.patient_name_dob }}:</span>
+          <p class="font-bold text-slate-800">{{ current_profile.name }} {% if current_profile.birth_date %}({{ current_profile.birth_date }}){% endif %}</p>
         </div>
         <div>
-          <span class="font-semibold text-rose-600 block">Critical Allergies:</span>
-          <p class="font-medium text-slate-800 bg-rose-50 p-2 rounded border border-rose-200">{{ profile.allergies }}</p>
+          <span class="font-semibold text-rose-600 block">{{ t.critical_allergies }}:</span>
+          <p class="font-medium text-slate-800 bg-rose-50 p-2 rounded border border-rose-200">{{ current_profile.allergies or 'None reported' }}</p>
         </div>
         <div>
-          <span class="font-semibold text-slate-500 block">Chronic Conditions:</span>
-          <p class="text-slate-700">{{ profile.chronic_conditions }}</p>
+          <span class="font-semibold text-slate-500 block">{{ t.chronic_conditions }}:</span>
+          <p class="text-slate-700">{{ current_profile.chronic_conditions or 'None' }}</p>
         </div>
         <div>
-          <span class="font-semibold text-slate-500 block">Current Medications:</span>
-          <p class="text-slate-700">{{ profile.current_medications }}</p>
+          <span class="font-semibold text-slate-500 block">{{ t.current_medications }}:</span>
+          <p class="text-slate-700">{{ current_profile.current_medications or 'None' }}</p>
         </div>
         <div class="pt-2 border-t border-slate-100">
-          <span class="font-semibold text-slate-500 block">Emergency Contact:</span>
-          <p class="font-bold text-slate-900">{{ profile.emergency_contact }}</p>
+          <span class="font-semibold text-slate-500 block">{{ t.emergency_contact }}:</span>
+          <p class="font-bold text-slate-900">{{ current_profile.emergency_contact or 'N/A' }}</p>
         </div>
       </div>
 
       <button onclick="window.print()" class="w-full mt-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-900 transition flex items-center justify-center gap-1">
-        <i class="fa-solid fa-print"></i> Print / Save Emergency Card
+        <i class="fa-solid fa-print"></i> {{ t.print_card }}
       </button>
     </div>
   </div>
 
   <script>
+    // Tab Switching
     function switchTab(tabId, btn) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
@@ -441,6 +656,21 @@
       }
     }
 
+    // Profile Switching
+    function switchProfile(pid) {
+      document.cookie = "profile_id=" + pid + "; path=/; max-age=31536000";
+      window.location.href = "/?profile_id=" + pid;
+    }
+
+    // Language Switching
+    function setLanguage(langCode) {
+      document.cookie = "lang=" + langCode + "; path=/; max-age=31536000";
+      const url = new URL(window.location.href);
+      url.searchParams.set("lang", langCode);
+      window.location.href = url.toString();
+    }
+
+    // Timeline Filtering
     function filterTimeline(category, btn) {
       document.querySelectorAll('.filter-btn').forEach(b => {
         b.classList.remove('bg-teal-600', 'text-white');
@@ -458,6 +688,7 @@
       });
     }
 
+    // Desktop/Mobile Viewport Toggle
     let isDesktopView = false;
     function toggleDesktopWidth() {
       const container = document.getElementById('appContainer');
@@ -475,12 +706,26 @@
       if (myChart) myChart.resize();
     }
 
+    // Modals
     function openAddRecordModal() {
       document.getElementById('recordDate').valueAsDate = new Date();
       document.getElementById('addRecordModal').classList.remove('hidden');
     }
     function closeAddRecordModal() {
       document.getElementById('addRecordModal').classList.add('hidden');
+    }
+    function openAddMemberModal() {
+      document.getElementById('addMemberModal').classList.remove('hidden');
+    }
+    function closeAddMemberModal() {
+      document.getElementById('addMemberModal').classList.add('hidden');
+    }
+    function openAddReminderModal() {
+      document.getElementById('remDueDate').valueAsDate = new Date();
+      document.getElementById('addReminderModal').classList.remove('hidden');
+    }
+    function closeAddReminderModal() {
+      document.getElementById('addReminderModal').classList.add('hidden');
     }
     function toggleEmergencyModal() {
       document.getElementById('iceModal').classList.toggle('hidden');
@@ -503,12 +748,14 @@
     function copyBrief() {
       const text = document.getElementById('doctorBriefText').innerText;
       navigator.clipboard.writeText(text);
-      alert('Pre-visit brief copied to clipboard!');
+      alert('{{ t.copied_alert }}');
     }
 
+    // Submit Record
     async function submitRecord(e) {
       e.preventDefault();
       const formData = new FormData();
+      formData.append('profile_id', document.getElementById('recordProfileId').value);
       formData.append('category', document.getElementById('recordCategory').value);
       formData.append('title', document.getElementById('recordTitle').value);
       formData.append('event_date', document.getElementById('recordDate').value);
@@ -540,6 +787,54 @@
       }
     }
 
+    // Submit New Family Member
+    async function submitNewMember(e) {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('name', document.getElementById('memName').value);
+      formData.append('role', document.getElementById('memRole').value);
+      formData.append('birth_date', document.getElementById('memDob').value);
+      formData.append('blood_type', document.getElementById('memBlood').value);
+      formData.append('avatar_color', document.getElementById('memColor').value);
+      formData.append('allergies', document.getElementById('memAllergies').value);
+      formData.append('emergency_contact', document.getElementById('memEmergency').value);
+
+      const res = await fetch('/api/profiles', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        switchProfile(data.profile_id);
+      } else {
+        alert('Error adding family member');
+      }
+    }
+
+    // Submit New Reminder
+    async function submitNewReminder(e) {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('profile_id', document.getElementById('remProfileId').value);
+      formData.append('title', document.getElementById('remTitle').value);
+      formData.append('due_date', document.getElementById('remDueDate').value);
+      formData.append('category', document.getElementById('remCategory').value);
+      formData.append('notes', document.getElementById('remNotes').value);
+
+      const res = await fetch('/api/reminders', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        location.reload();
+      } else {
+        alert('Error adding reminder');
+      }
+    }
+
+    // Chart.js Biomarker Visualization
     const biomarkerData = {{ biomarker_json | safe }};
     let myChart = null;
 
@@ -551,6 +846,7 @@
 
     function updateChart() {
       const select = document.getElementById('biomarkerSelect');
+      if (!select || !select.value) return;
       const bName = select.value;
       const history = biomarkerData[bName] || [];
 
