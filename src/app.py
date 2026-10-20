@@ -15,7 +15,10 @@ from .database import (
 )
 from .advisory import generate_health_advisory
 from .parser import extract_text_from_pdf, parse_medical_document
-from .i18n import get_translations
+from .i18n import (
+    get_translations, localize_record, localize_reminder,
+    localize_profile, localize_biomarker_name
+)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
@@ -54,7 +57,6 @@ async def home(request: Request, response: Response, lang: Optional[str] = None,
         else:
             profile_id = default_profile_id
 
-    # If profile_id is 0, it means "All Family"
     is_all_family = (profile_id == 0)
 
     if is_all_family:
@@ -81,7 +83,16 @@ async def home(request: Request, response: Response, lang: Optional[str] = None,
         biomarker_history = get_biomarker_history(profile_id=profile_id)
         reminders = get_all_reminders(profile_id=profile_id)
 
+    # Generate Advisory in selected language
     advisory = generate_health_advisory(records, biomarker_history, reminders, current_profile, lang=lang)
+
+    # Localize records, reminders, and profile details for display
+    localized_records = [localize_record(r, lang=lang) for r in records]
+    localized_reminders = [localize_reminder(rem, lang=lang) for rem in reminders]
+    localized_profile = localize_profile(current_profile, lang=lang)
+
+    # Localize biomarker display names
+    biomarker_display_map = {name: localize_biomarker_name(name, lang=lang) for name in biomarker_history.keys()}
 
     res = templates.TemplateResponse(
         request=request,
@@ -90,13 +101,15 @@ async def home(request: Request, response: Response, lang: Optional[str] = None,
             "t": t,
             "lang": lang,
             "profiles": profiles,
-            "current_profile": current_profile,
+            "current_profile": localized_profile,
+            "raw_profile": current_profile,
             "profile_id": profile_id,
             "is_all_family": is_all_family,
-            "records": records,
+            "records": localized_records,
             "biomarker_history": biomarker_history,
+            "biomarker_display_map": biomarker_display_map,
             "biomarker_json": json.dumps(biomarker_history),
-            "reminders": reminders,
+            "reminders": localized_reminders,
             "advisory": advisory
         }
     )

@@ -1,5 +1,5 @@
-﻿import json
-from typing import Dict, Any
+import json
+from typing import Dict, Any, List
 
 TRANSLATIONS: Dict[str, Dict[str, str]] = {
     "en": {
@@ -217,7 +217,249 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
     }
 }
 
+# Standard Biomarker Translations (Universal Clinical Dictionary)
+BIOMARKER_NAMES: Dict[str, Dict[str, str]] = {
+    "Ferritin": {"en": "Ferritin", "ru": "Ферритин", "sr": "Feritin"},
+    "Vitamin D": {"en": "Vitamin D (25-OH)", "ru": "Витамин D (25-OH)", "sr": "Vitamin D (25-OH)"},
+    "Total Cholesterol": {"en": "Total Cholesterol", "ru": "Общий холестерин", "sr": "Ukupni holesterol"},
+    "LDL": {"en": "LDL Cholesterol", "ru": "ЛПНП (плохой холестерин)", "sr": "LDL holesterol"},
+    "HDL": {"en": "HDL Cholesterol", "ru": "ЛПВП (хороший холестерин)", "sr": "HDL holesterol"},
+    "Fasting Glucose": {"en": "Fasting Glucose", "ru": "Глюкоза (натощак)", "sr": "Glukoza (natašte)"},
+    "HbA1c": {"en": "HbA1c (Glycated Hemoglobin)", "ru": "Гликированный гемоглобин", "sr": "Glikozilirani hemoglobin"},
+    "Hemoglobin": {"en": "Hemoglobin", "ru": "Гемоглобин", "sr": "Hemoglobin"},
+    "TSH": {"en": "TSH (Thyroid Stimulating Hormone)", "ru": "ТТГ (тиреотропный гормон)", "sr": "TSH (tiroidni hormon)"}
+}
+
+# Standard Sample Content Localization Mapping
+CONTENT_TRANSLATIONS: Dict[str, Dict[str, str]] = {
+    # Titles
+    "Comprehensive Metabolic & Iron Panel (Spring)": {
+        "ru": "Биохимический анализ крови и обмен железа (весна)",
+        "sr": "Biohemijski nalaz krvi i panel gvožđa (proleće)"
+    },
+    "Follow-up Iron & Vitamin Panel (Autumn)": {
+        "ru": "Контрольный анализ: железо и витамины (осень)",
+        "sr": "Kontrolni nalaz: gvožđe i vitamini (jesen)"
+    },
+    "Cardiology & Blood Pressure Review": {
+        "ru": "Консультация кардиолога и мониторинг давления",
+        "sr": "Kardiološki pregled i kontrola pritiska"
+    },
+    "Acute Viral Rhinosinusitis": {
+        "ru": "Острый вирусный риносинусит",
+        "sr": "Akutni virusni rinosinuzitis"
+    },
+    "Preventive Dermatological Mole Excision": {
+        "ru": "Профилактическое удаление родинки (невуса)",
+        "sr": "Preventivno uklanjanje mladeža (nevusa)"
+    },
+    "Allergy Season Note & Inhaler Refill": {
+        "ru": "Сезонная аллергия и рецепт на ингалятор",
+        "sr": "Sezonska alergija i inhalator"
+    },
+    "4-Year Well-Child Pediatric Exam": {
+        "ru": "Плановый осмотр педиатра в 4 года",
+        "sr": "Sistematski pregled pedijatra u 4. godini"
+    },
+    "Viral Gastroenteritis Episode": {
+        "ru": "Эпизод вирусного гастроэнтерита (ротавирус)",
+        "sr": "Epizoda virusnog gastroenteritisa"
+    },
+
+    # Notes
+    "Routine annual blood work. Mild microcytic anemia indications noted.": {
+        "ru": "Плановый ежегодный чекап. Признаки умеренной микроцитарной анемии.",
+        "sr": "Rutinski godišnji pregled krvi. Uočeni blagi znaci mikrocitne anemije."
+    },
+    "Ferritin has started to rise with supplementation but remains below optimal threshold.": {
+        "ru": "Уровень ферритина начал расти на фоне приема добавок, но остается ниже оптимальной нормы.",
+        "sr": "Nivo feritina počeo je da raste uz suplementaciju, ali je i dalje ispod optimalne granice."
+    },
+    "Patient reports mild occasional palpitations under work stress. ECG normal. Resting BP 118/76 mmHg. Recommended hydration and magnesium.": {
+        "ru": "Жалобы на редкое ощущение учащенного сердцебиения при стрессе на работе. ЭКГ в норме. Давление в покое 118/76 мм рт. ст. Рекомендован питьевой режим и магний.",
+        "sr": "Povremene blage palpitacije pri stresu na poslu. EKG uredan. Pritisak u mirovanju 118/76 mmHg. Preporučena hidratacija i magnezijum."
+    },
+    "Fever up to 38.4C, sinus congestion, headache. Prescribed nasal saline rinse, ibuprofen as needed. Fully resolved in 6 days.": {
+        "ru": "Температура до 38.4°C, заложенность пазух носа, головная боль. Назначены промывания солевым раствором, ибупрофен. Полное выздоровление за 6 дней.",
+        "sr": "Temperatura do 38.4°C, zapušenost sinusa, glavobolja. Prepisano ispiranje fiziološkim rastvorom, ibuprofen po potrebi. Oporavak za 6 dana."
+    },
+    "Atypical dysplastic nevus removed from upper back margin. Histopathology confirmed benign margins with clear boundary.": {
+        "ru": "Удален атипичный диспластический невус в верхней части спины. Гистология подтвердила доброкачественные чистые края.",
+        "sr": "Uklonjen atipični displastični nevus na leđima. Histopatologija potvrdila benigne i čiste ivice."
+    },
+    "Birch pollen count very high. Started desloratadine 5mg daily. Albuterol inhaler kept on hand, only needed twice after jogging.": {
+        "ru": "Высокая концентрация пыльцы березы. Начат дезлоратадин 5 мг/день. Сальбутамол наготове, потребовался дважды после бега.",
+        "sr": "Visoka koncentracija polena breze. Započet desloratadin 5mg dnevno. Salbutamol inhalator pri ruci, potreban samo dva puta nakon trčanja."
+    },
+    "Height: 104 cm (60th percentile), Weight: 17 kg (55th percentile). Vision screening passed. Recommended preschool MMR booster.": {
+        "ru": "Рост: 104 см (60-й перцентиль), Вес: 17 кг (55-й перцентиль). Зрение в норме. Рекомендована ревакцинация КПК перед садом/школой.",
+        "sr": "Visina: 104 cm (60. percentil), Težina: 17 kg (55. percentil). Pregled vida uredan. Preporučena predškolska MMR revakcinacija."
+    },
+    "Low fever, mild dehydration. Prescribed oral rehydration salts (ORS) and light diet. Fully resolved in 3 days.": {
+        "ru": "Небольшая температура, легкое обезвоживание. Назначен регидрон и диета. Полное выздоровление за 3 дня.",
+        "sr": "Blaga temperatura, blaga dehidracija. Prepisani oralni rehidracioni rastvori i lagana ishrana. Potpuni oporavak za 3 dana."
+    },
+
+    # Facilities & Providers
+    "Central Diagnostics Lab": {
+        "ru": "Центральная диагностическая лаборатория",
+        "sr": "Centralna dijagnostička laboratorija"
+    },
+    "Heart & Health Clinic": {
+        "ru": "Клиника кардиологии и здоровья",
+        "sr": "Klinika za srce i zdravlje"
+    },
+    "Urgent Care Center": {
+        "ru": "Пункт неотложной помощи",
+        "sr": "Centar za hitnu pomoć"
+    },
+    "St. Jude Dermatology": {
+        "ru": "Дерматологическая клиника св. Иуды",
+        "sr": "Dermatološka ordinacija"
+    },
+    "City Pediatric Clinic": {
+        "ru": "Городская детская поликлиника",
+        "sr": "Gradska pedijatrijska klinika"
+    },
+    "Home Log": {
+        "ru": "Домашний дневник",
+        "sr": "Kućni dnevnik"
+    },
+    "Self-Report": {
+        "ru": "Самоотчет",
+        "sr": "Lični unos"
+    },
+
+    # Reminders
+    "Bi-annual Dental Cleaning & Examination": {
+        "ru": "Профгигиена полости рта и осмотр у стоматолога",
+        "sr": "Stomatološki pregled i skidanje kamenca"
+    },
+    "Last visit was in May 2026. Routine checkup and tartar removal.": {
+        "ru": "Прошлый визит был в мае 2026. Плановый осмотр и снятие зубного камня.",
+        "sr": "Poslednja poseta u maju 2026. Rutinska kontrola i uklanjanje kamenca."
+    },
+    "Repeat Ferritin & Complete Blood Count (CBC)": {
+        "ru": "Повторный анализ на ферритин и ОАК",
+        "sr": "Kontrolni feritin i kompletna krvna slika (KKS)"
+    },
+    "Check progress after 3 full months on iron bisglycinate.": {
+        "ru": "Контроль динамики через 3 месяца приема бисглицината железа.",
+        "sr": "Kontrola dinamike nakon 3 meseca suplementacije gvožđem."
+    },
+    "Annual Dermatological Full-Body Mole Check": {
+        "ru": "Ежегодный осмотр родинок у дерматолога (дерматоскопия)",
+        "sr": "Godišnji pregled mladeža kod dermatologa (dermoskopija)"
+    },
+    "12-month follow up after dysplastic mole excision in Nov 2025.": {
+        "ru": "Контроль через 12 месяцев после иссечения невуса в ноябре 2025.",
+        "sr": "Kontrola 12 meseci nakon uklanjanja nevusa u novembru 2025."
+    },
+    "Tetanus / Diphtheria / Pertussis Booster (Tdap)": {
+        "ru": "Ревакцинация АДС-М (столбняк, дифтерия, коклюш)",
+        "sr": "Revakcinacija protiv tetanusa i difterije (DiTePer)"
+    },
+    "Due every 10 years. Last administered in 2017.": {
+        "ru": "Проводится каждые 10 лет. Последняя прививка была в 2017 году.",
+        "sr": "Radi se na svakih 10 godina. Poslednja primljena 2017."
+    },
+    "Preschool MMR (Measles/Mumps/Rubella) Booster": {
+        "ru": "Ревакцинация КПК (корь, паротит, краснуха) перед школой",
+        "sr": "Predškolska MMR revakcinacija (male boginje, zauške, rubeola)"
+    },
+    "Required 4-year booster before kindergarten registration.": {
+        "ru": "Обязательная ревакцинация в 4-6 лет перед садом или школой.",
+        "sr": "Obavezna revakcinacija u uzrastu od 4 godine pre polaska u vrtić."
+    },
+    "Pediatric Dental Cleaning & Fluoride Check": {
+        "ru": "Детский стоматолог: профгигиена и фторирование",
+        "sr": "Kontrola dečjeg zubara i zaštita fluorom"
+    },
+    "Routine dental examination and fluoride varnish.": {
+        "ru": "Плановый осмотр молочных зубов и покрытие фторлаком.",
+        "sr": "Rutinski pregled zuba i premazivanje fluorom."
+    },
+
+    # Profile Attributes
+    "Penicillin (mild rash), Pollen": {
+        "ru": "Пенициллин (кожная сыпь), пыльца березы",
+        "sr": "Penicilin (blagi osip), polen"
+    },
+    "Mild Seasonal Asthma": {
+        "ru": "Легкая сезонная бронхиальная астма",
+        "sr": "Blaga sezonska astma"
+    },
+    "Vitamin D3 (2000 IU daily), Iron Bisglycinate (25mg)": {
+        "ru": "Витамин D3 (2000 ME/день), Бисглицинат железа (25 мг)",
+        "sr": "Vitamin D3 (2000 IJ dnevno), Gvožđe bisglicinat (25 mg)"
+    },
+    "Partner: +1 (555) 019-2834": {
+        "ru": "Супруг(а): +1 (555) 019-2834",
+        "sr": "Partner: +1 (555) 019-2834"
+    },
+    "Peanuts (mild hives)": {
+        "ru": "Арахис (крапивница)",
+        "sr": "Kikiriki (blaga koprivnjača)"
+    },
+    "Multivitamin syrup": {
+        "ru": "Детский поливитаминный сироп",
+        "sr": "Dečji multivitaminski sirup"
+    },
+    "Mother (Alex): +1 (555) 019-2834": {
+        "ru": "Мама (Алекс): +1 (555) 019-2834",
+        "sr": "Majka (Aleks): +1 (555) 019-2834"
+    }
+}
+
 def get_translations(lang: str = "en") -> Dict[str, str]:
     if lang not in TRANSLATIONS:
         lang = "en"
     return TRANSLATIONS[lang]
+
+def localize_biomarker_name(name: str, lang: str = "en") -> str:
+    if name in BIOMARKER_NAMES and lang in BIOMARKER_NAMES[name]:
+        return BIOMARKER_NAMES[name][lang]
+    return name
+
+def localize_text(text: str, lang: str = "en") -> str:
+    if not text or lang == "en":
+        return text
+    if text in CONTENT_TRANSLATIONS and lang in CONTENT_TRANSLATIONS[text]:
+        return CONTENT_TRANSLATIONS[text][lang]
+    return text
+
+def localize_record(record: Dict[str, Any], lang: str = "en") -> Dict[str, Any]:
+    if lang == "en":
+        return record
+    r = dict(record)
+    r["title"] = localize_text(r.get("title", ""), lang)
+    r["notes"] = localize_text(r.get("notes", ""), lang)
+    r["provider"] = localize_text(r.get("provider", ""), lang)
+    r["facility"] = localize_text(r.get("facility", ""), lang)
+
+    if "biomarkers" in r and r["biomarkers"]:
+        localized_bms = []
+        for b in r["biomarkers"]:
+            b_copy = dict(b)
+            b_copy["name"] = localize_biomarker_name(b_copy.get("name", ""), lang)
+            localized_bms.append(b_copy)
+        r["biomarkers"] = localized_bms
+    return r
+
+def localize_reminder(reminder: Dict[str, Any], lang: str = "en") -> Dict[str, Any]:
+    if lang == "en":
+        return reminder
+    rem = dict(reminder)
+    rem["title"] = localize_text(rem.get("title", ""), lang)
+    rem["notes"] = localize_text(rem.get("notes", ""), lang)
+    return rem
+
+def localize_profile(profile: Dict[str, Any], lang: str = "en") -> Dict[str, Any]:
+    if lang == "en":
+        return profile
+    p = dict(profile)
+    p["allergies"] = localize_text(p.get("allergies", ""), lang)
+    p["chronic_conditions"] = localize_text(p.get("chronic_conditions", ""), lang)
+    p["current_medications"] = localize_text(p.get("current_medications", ""), lang)
+    p["emergency_contact"] = localize_text(p.get("emergency_contact", ""), lang)
+    return p

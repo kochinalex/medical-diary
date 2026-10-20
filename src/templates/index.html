@@ -222,7 +222,7 @@
             <label for="biomarkerSelect" class="text-xs font-semibold text-slate-700">{{ t.select_biomarker }}</label>
             <select id="biomarkerSelect" onchange="updateChart()" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700">
               {% for b_name in biomarker_history.keys() %}
-              <option value="{{ b_name }}">{{ b_name }}</option>
+              <option value="{{ b_name }}">{{ biomarker_display_map.get(b_name, b_name) }}</option>
               {% endfor %}
             </select>
           </div>
@@ -237,7 +237,7 @@
           {% set latest = history[-1] %}
           <div class="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
             <div>
-              <h4 class="font-semibold text-sm text-slate-900">{{ b_name }}</h4>
+              <h4 class="font-semibold text-sm text-slate-900">{{ biomarker_display_map.get(b_name, b_name) }}</h4>
               <p class="text-[11px] text-slate-400">Ref: {{ latest.ref_min }} - {{ latest.ref_max }} {{ latest.unit }} • {{ latest.test_date }}</p>
             </div>
             <div class="text-right">
@@ -836,6 +836,7 @@
 
     // Chart.js Biomarker Visualization
     const biomarkerData = {{ biomarker_json | safe }};
+    const biomarkerDisplayMap = {{ biomarker_display_map | tojson }};
     let myChart = null;
 
     function initChart() {
@@ -853,6 +854,7 @@
       const labels = history.map(h => h.test_date);
       const values = history.map(h => h.value);
       const unit = history.length > 0 ? history[0].unit : '';
+      const displayLabel = biomarkerDisplayMap[bName] || bName;
 
       const ctx = document.getElementById('trendChart').getContext('2d');
       if (myChart) myChart.destroy();
@@ -862,7 +864,7 @@
         data: {
           labels: labels,
           datasets: [{
-            label: `${bName} (${unit})`,
+            label: `${displayLabel} (${unit})`,
             data: values,
             borderColor: '#0d9488',
             backgroundColor: 'rgba(13, 148, 136, 0.1)',
