@@ -1,0 +1,18 @@
+{
+  "name": "Medical Diary & Family Health",
+  "short_name": "MedDiary",
+  "description": "Local-first family health diary and proactive clinical assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
