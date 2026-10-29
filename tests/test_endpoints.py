@@ -6,9 +6,14 @@ from starlette.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.app import app
-from src.database import get_profile
+from src.database import get_profile, init_db
+from src.auth import create_session_token
 
+init_db()
 client = TestClient(app)
+# Authenticate default test client as user 1
+token = create_session_token(1)
+client.cookies.set("session_token", token)
 
 def test_home_page_languages():
     for lang in ["en", "ru", "sr"]:

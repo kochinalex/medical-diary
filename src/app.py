@@ -7,11 +7,16 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from .auth import (
+    hash_password, verify_password,
+    create_session_token, verify_session_token
+)
 from .database import (
-    init_db, get_profiles, get_profile, add_profile, update_profile, delete_profile,
+    init_db, create_user, get_user_by_email, get_user_by_id,
+    get_profiles, get_profile, add_profile, update_profile, delete_profile,
     get_all_records, add_record, add_biomarker, delete_record,
     get_biomarker_history, get_all_reminders, toggle_reminder,
-    add_reminder, delete_reminder, clear_all_records
+    add_reminder, delete_reminder, clear_all_records, import_user_health_data
 )
 from .advisory import generate_health_advisory
 from .parser import extract_text_from_pdf, parse_medical_document
@@ -32,20 +37,110 @@ app = FastAPI(title="Medical Diary")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "src", "templates"))
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "src", "static")), name="static")
 
+def get_current_user_id(request: Request) -> Optional[int]:
+    token = request.cookies.get("session_token")
+    return verify_session_token(token)
+
+def get_request_lang(request: Request, query_lang: Optional[str] = None) -> str:
+    lang = query_lang or request.cookies.get("lang", "en")
+    return lang if lang in ["en", "ru", "sr"] else "en"
+
+# ================= AUTH ROUTES =================
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request, lang: Optional[str] = None, mode: Optional[str] = "login"):
+    user_id = get_current_user_id(request)
+    if user_id:
+        return RedirectResponse(url="/", status_code=303)
+    
+    active_lang = get_request_lang(request, lang)
+    t = get_translations(active_lang)
+    
+    res = templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={"t": t, "lang": active_lang, "mode": mode, "error": None}
+    )
+    res.set_cookie("lang", active_lang, max_age=31536000)
+    return res
+
+@app.post("/login", response_class=HTMLResponse)
+async def login_submit(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...)
+):
+    active_lang = get_request_lang(request)
+    t = get_translations(active_lang)
+    
+    user = get_user_by_email(email)
+    if not user or not verify_password(password, user["password_hash"]):
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={"t": t, "lang": active_lang, "mode": "login", "error": t.get("invalid_credentials", "Invalid credentials")}
+        )
+    
+    token = create_session_token(user["id"])
+    res = RedirectResponse(url="/", status_code=303)
+    res.set_cookie("session_token", token, max_age=30 * 86400, httponly=True, samesite="lax")
+    res.set_cookie("lang", active_lang, max_age=31536000)
+    return res
+
+@app.post("/register", response_class=HTMLResponse)
+async def register_submit(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    full_name: str = Form("")
+):
+    active_lang = get_request_lang(request)
+    t = get_translations(active_lang)
+    
+    existing = get_user_by_email(email)
+    if existing:
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={"t": t, "lang": active_lang, "mode": "register", "error": t.get("email_exists", "Email already exists")}
+        )
+    
+    pw_hash = hash_password(password)
+    user_id = create_user(email=email, password_hash=pw_hash, full_name=full_name)
+    
+    token = create_session_token(user_id)
+    res = RedirectResponse(url="/", status_code=303)
+    res.set_cookie("session_token", token, max_age=30 * 86400, httponly=True, samesite="lax")
+    res.set_cookie("lang", active_lang, max_age=31536000)
+    return res
+
+@app.get("/logout")
+async def logout():
+    res = RedirectResponse(url="/login", status_code=303)
+    res.delete_cookie("session_token")
+    return res
+
+# ================= MAIN APPLICATION =================
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, response: Response, lang: Optional[str] = None, profile_id: Optional[int] = None):
-    # Determine Language: query param -> cookie -> default "en"
-    if not lang:
-        lang = request.cookies.get("lang", "en")
-    if lang not in ["en", "ru", "sr"]:
-        lang = "en"
+    user_id = get_current_user_id(request)
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
 
-    t = get_translations(lang)
+    user = get_user_by_id(user_id)
+    if not user:
+        res = RedirectResponse(url="/login", status_code=303)
+        res.delete_cookie("session_token")
+        return res
 
-    profiles = get_profiles()
+    active_lang = get_request_lang(request, lang)
+    t = get_translations(active_lang)
+
+    profiles = get_profiles(user_id=user_id)
     if not profiles:
-        init_db()
-        profiles = get_profiles()
+        # Create an initial self profile if user has none
+        p_name = user.get("full_name") or user["email"].split("@")[0].capitalize()
+        add_profile(name=p_name, role="Self", avatar_color="#0d9488", user_id=user_id)
+        profiles = get_profiles(user_id=user_id)
 
     default_profile_id = profiles[0]["id"] if profiles else 1
 
@@ -57,7 +152,11 @@ async def home(request: Request, response: Response, lang: Optional[str] = None,
         else:
             profile_id = default_profile_id
 
+    # Verify profile belongs to user
+    profile_ids = [p["id"] for p in profiles]
     is_all_family = (profile_id == 0)
+    if not is_all_family and profile_id not in profile_ids:
+        profile_id = default_profile_id
 
     if is_all_family:
         current_profile = {
@@ -70,36 +169,37 @@ async def home(request: Request, response: Response, lang: Optional[str] = None,
             "current_medications": "",
             "avatar_color": "#475569"
         }
-        records = get_all_records(profile_id=0)
-        biomarker_history = get_biomarker_history(profile_id=0)
-        reminders = get_all_reminders(profile_id=0)
+        records = get_all_records(profile_id=0, user_id=user_id)
+        biomarker_history = get_biomarker_history(profile_id=0, user_id=user_id)
+        reminders = get_all_reminders(profile_id=0, user_id=user_id)
     else:
-        current_profile = get_profile(profile_id)
+        current_profile = get_profile(profile_id, user_id=user_id)
         if not current_profile and profiles:
             current_profile = profiles[0]
             profile_id = current_profile["id"]
 
-        records = get_all_records(profile_id=profile_id)
-        biomarker_history = get_biomarker_history(profile_id=profile_id)
-        reminders = get_all_reminders(profile_id=profile_id)
+        records = get_all_records(profile_id=profile_id, user_id=user_id)
+        biomarker_history = get_biomarker_history(profile_id=profile_id, user_id=user_id)
+        reminders = get_all_reminders(profile_id=profile_id, user_id=user_id)
 
     # Generate Advisory in selected language
-    advisory = generate_health_advisory(records, biomarker_history, reminders, current_profile, lang=lang)
+    advisory = generate_health_advisory(records, biomarker_history, reminders, current_profile, lang=active_lang)
 
     # Localize records, reminders, and profile details for display
-    localized_records = [localize_record(r, lang=lang) for r in records]
-    localized_reminders = [localize_reminder(rem, lang=lang) for rem in reminders]
-    localized_profile = localize_profile(current_profile, lang=lang)
+    localized_records = [localize_record(r, lang=active_lang) for r in records]
+    localized_reminders = [localize_reminder(rem, lang=active_lang) for rem in reminders]
+    localized_profile = localize_profile(current_profile, lang=active_lang)
 
     # Localize biomarker display names
-    biomarker_display_map = {name: localize_biomarker_name(name, lang=lang) for name in biomarker_history.keys()}
+    biomarker_display_map = {name: localize_biomarker_name(name, lang=active_lang) for name in biomarker_history.keys()}
 
     res = templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
             "t": t,
-            "lang": lang,
+            "lang": active_lang,
+            "current_user": user,
             "profiles": profiles,
             "current_profile": localized_profile,
             "raw_profile": current_profile,
@@ -113,12 +213,14 @@ async def home(request: Request, response: Response, lang: Optional[str] = None,
             "advisory": advisory
         }
     )
-    res.set_cookie("lang", lang, max_age=31536000)
+    res.set_cookie("lang", active_lang, max_age=31536000)
     res.set_cookie("profile_id", str(profile_id), max_age=31536000)
     return res
 
+# ================= REST APIS (SCOPED TO CURRENT USER) =================
 @app.post("/api/records")
 async def create_record(
+    request: Request,
     category: str = Form(...),
     title: str = Form(...),
     event_date: str = Form(...),
@@ -131,12 +233,19 @@ async def create_record(
     bm_unit: Optional[str] = Form(""),
     file: Optional[UploadFile] = File(None)
 ):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    user_upload_dir = os.path.join(UPLOAD_DIR, f"user_{user_id}")
+    os.makedirs(user_upload_dir, exist_ok=True)
+
     saved_file_path = ""
     extracted_biomarkers = []
 
     if file and file.filename:
         filename = f"{event_date}_{file.filename}"
-        saved_file_path = os.path.join(UPLOAD_DIR, filename)
+        saved_file_path = os.path.join(user_upload_dir, filename)
         with open(saved_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
@@ -146,6 +255,7 @@ async def create_record(
             extracted_biomarkers = parsed.get("biomarkers", [])
 
     rec_id = add_record(
+        user_id=user_id,
         profile_id=profile_id,
         category=category,
         title=title,
@@ -158,6 +268,7 @@ async def create_record(
 
     if bm_name and bm_value is not None:
         add_biomarker(
+            user_id=user_id,
             profile_id=profile_id,
             record_id=rec_id,
             name=bm_name,
@@ -170,6 +281,7 @@ async def create_record(
 
     for bm in extracted_biomarkers:
         add_biomarker(
+            user_id=user_id,
             profile_id=profile_id,
             record_id=rec_id,
             name=bm["name"],
@@ -184,6 +296,7 @@ async def create_record(
 
 @app.post("/api/profiles")
 async def create_family_member(
+    request: Request,
     name: str = Form(...),
     role: str = Form("Child"),
     birth_date: Optional[str] = Form(""),
@@ -195,7 +308,12 @@ async def create_family_member(
     emergency_contact: Optional[str] = Form(""),
     avatar_color: Optional[str] = Form("#0d9488")
 ):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     new_id = add_profile(
+        user_id=user_id,
         name=name,
         role=role,
         birth_date=birth_date or "",
@@ -211,6 +329,7 @@ async def create_family_member(
 
 @app.post("/api/profiles/{profile_id}")
 async def update_family_member(
+    request: Request,
     profile_id: int,
     name: str = Form(...),
     role: str = Form("Self"),
@@ -223,6 +342,10 @@ async def update_family_member(
     emergency_contact: Optional[str] = Form(""),
     avatar_color: Optional[str] = Form("#0d9488")
 ):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     update_profile(profile_id, {
         "name": name,
         "role": role,
@@ -234,23 +357,32 @@ async def update_family_member(
         "current_medications": current_medications or "",
         "emergency_contact": emergency_contact or "",
         "avatar_color": avatar_color or "#0d9488"
-    })
+    }, user_id=user_id)
     return {"status": "success", "profile_id": profile_id}
 
 @app.delete("/api/profiles/{profile_id}")
-async def remove_family_member(profile_id: int):
-    success = delete_profile(profile_id)
+async def remove_family_member(request: Request, profile_id: int):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    success = delete_profile(profile_id, user_id=user_id)
     if not success:
         raise HTTPException(status_code=400, detail="Cannot delete the primary/only profile")
     return {"status": "success"}
 
 @app.post("/api/reminders/{reminder_id}/toggle")
-async def toggle_reminder_endpoint(reminder_id: int):
-    toggle_reminder(reminder_id)
+async def toggle_reminder_endpoint(request: Request, reminder_id: int):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    toggle_reminder(reminder_id, user_id=user_id)
     return {"status": "success"}
 
 @app.post("/api/reminders")
 async def create_reminder(
+    request: Request,
     title: str = Form(...),
     category: str = Form("screening"),
     due_date: str = Form(...),
@@ -258,29 +390,79 @@ async def create_reminder(
     frequency: str = Form("once"),
     notes: Optional[str] = Form("")
 ):
-    rem_id = add_reminder(title, category, due_date, profile_id=profile_id, frequency=frequency, notes=notes or "")
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    rem_id = add_reminder(
+        user_id=user_id,
+        title=title,
+        category=category,
+        due_date=due_date,
+        profile_id=profile_id,
+        frequency=frequency,
+        notes=notes or ""
+    )
     return {"status": "success", "reminder_id": rem_id}
 
 @app.delete("/api/records/{record_id}")
-async def remove_record(record_id: int):
-    delete_record(record_id)
+async def remove_record(request: Request, record_id: int):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    delete_record(record_id, user_id=user_id)
     return {"status": "success"}
 
 @app.delete("/api/reminders/{reminder_id}")
-async def remove_reminder(reminder_id: int):
-    delete_reminder(reminder_id)
+async def remove_reminder(request: Request, reminder_id: int):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    delete_reminder(reminder_id, user_id=user_id)
     return {"status": "success"}
 
 @app.post("/api/records/clear-sample")
-async def clear_sample_endpoint(profile_id: Optional[int] = Form(None)):
-    clear_all_records(profile_id=profile_id)
+async def clear_sample_endpoint(request: Request, profile_id: Optional[int] = Form(None)):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    clear_all_records(profile_id=profile_id, user_id=user_id)
     return {"status": "success"}
 
 @app.get("/api/export")
-async def export_data(profile_id: Optional[int] = None):
-    return {
-        "profiles": get_profiles(),
-        "records": get_all_records(profile_id=profile_id),
-        "biomarkers": get_biomarker_history(profile_id=profile_id),
-        "reminders": get_all_reminders(profile_id=profile_id)
+async def export_data(request: Request, profile_id: Optional[int] = None, download: bool = False):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    payload = {
+        "version": "2.0",
+        "profiles": get_profiles(user_id=user_id),
+        "records": get_all_records(profile_id=profile_id, user_id=user_id),
+        "biomarkers": get_biomarker_history(profile_id=profile_id, user_id=user_id),
+        "reminders": get_all_reminders(profile_id=profile_id, user_id=user_id)
     }
+    if download:
+        return Response(
+            content=json.dumps(payload, indent=2, ensure_ascii=False),
+            media_type="application/json",
+            headers={"Content-Disposition": "attachment; filename=medical_diary_backup.json"}
+        )
+    return payload
+
+@app.post("/api/import")
+async def import_data_endpoint(request: Request, file: UploadFile = File(...)):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        content = await file.read()
+        data = json.loads(content.decode("utf-8"))
+        counts = import_user_health_data(user_id=user_id, data=data)
+        return {"status": "success", "counts": counts}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid import file: {str(e)}")

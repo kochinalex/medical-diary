@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{{ t.app_title }} - {{ t.login_title }}</title>
+  <!-- PWA & Mobile Meta Tags -->
+  <meta name="theme-color" content="#0f766e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
+  <link rel="apple-touch-icon" href="/static/icon.svg">
+  <link rel="manifest" href="/static/manifest.json">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .mobile-frame {
+      max-width: 440px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased selection:bg-teal-500 selection:text-white flex items-center justify-center min-h-screen p-4">
+
+  <div class="mobile-frame w-full flex flex-col justify-center">
+    
+    <!-- Language Switcher Bar -->
+    <div class="flex justify-end mb-3">
+      <div class="flex items-center bg-white shadow-xs rounded-full p-1 border border-slate-200 text-xs font-semibold">
+        <a href="/login?lang=en&mode={{ mode }}" class="px-2 py-0.5 rounded-full {% if lang == 'en' %}bg-teal-600 text-white{% else %}text-slate-600 hover:text-teal-700{% endif %}">EN</a>
+        <a href="/login?lang=ru&mode={{ mode }}" class="px-2 py-0.5 rounded-full {% if lang == 'ru' %}bg-teal-600 text-white{% else %}text-slate-600 hover:text-teal-700{% endif %}">RU</a>
+        <a href="/login?lang=sr&mode={{ mode }}" class="px-2 py-0.5 rounded-full {% if lang == 'sr' %}bg-teal-600 text-white{% else %}text-slate-600 hover:text-teal-700{% endif %}">SR</a>
+      </div>
+    </div>
+
+    <!-- Main Card -->
+    <div class="bg-white rounded-3xl p-6 shadow-xl border border-slate-200/80">
+      
+      <!-- App Header Icon -->
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 bg-gradient-to-tr from-teal-700 to-emerald-500 rounded-2xl flex items-center justify-center text-white text-2xl mx-auto shadow-md shadow-teal-700/20 mb-3">
+          <i class="fa-solid fa-heart-pulse"></i>
+        </div>
+        <h1 class="font-bold text-xl text-slate-900 tracking-tight">{{ t.app_title }}</h1>
+        <p class="text-xs text-slate-500 mt-0.5">{{ t.app_subtitle }}</p>
+      </div>
+
+      <!-- Auth Toggle Tabs -->
+      <div class="flex bg-slate-100 rounded-xl p-1 mb-5 text-xs font-bold">
+        <button type="button" onclick="setAuthMode('login')" id="tabLoginBtn" class="flex-1 py-2 rounded-lg transition {% if mode != 'register' %}bg-white text-teal-700 shadow-xs{% else %}text-slate-500 hover:text-slate-800{% endif %}">
+          {{ t.login_btn }}
+        </button>
+        <button type="button" onclick="setAuthMode('register')" id="tabRegisterBtn" class="flex-1 py-2 rounded-lg transition {% if mode == 'register' %}bg-white text-teal-700 shadow-xs{% else %}text-slate-500 hover:text-slate-800{% endif %}">
+          {{ t.register_btn }}
+        </button>
+      </div>
+
+      <!-- Error Alert -->
+      {% if error %}
+      <div class="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+        <i class="fa-solid fa-circle-exclamation text-rose-500"></i>
+        <span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <!-- Login Form -->
+      <form id="loginForm" action="/login" method="POST" class="space-y-3.5 {% if mode == 'register' %}hidden{% endif %}">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">{{ t.email_label }}</label>
+          <div class="relative">
+            <i class="fa-solid fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="email" name="email" required placeholder="alex@medical.diary" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">{{ t.password_label }}</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="password" name="password" required placeholder="••••••••" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-teal-600/20 transition flex items-center justify-center gap-1.5 mt-2">
+          <span>{{ t.login_btn }}</span>
+          <i class="fa-solid fa-arrow-right text-[10px]"></i>
+        </button>
+
+        <div class="text-center pt-2">
+          <button type="button" onclick="setAuthMode('register')" class="text-xs text-teal-600 hover:text-teal-800 font-semibold">
+            {{ t.no_account }}
+          </button>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" action="/register" method="POST" class="space-y-3.5 {% if mode != 'register' %}hidden{% endif %}">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">{{ t.full_name_label }}</label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" name="full_name" required placeholder="Alex Kochina" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">{{ t.email_label }}</label>
+          <div class="relative">
+            <i class="fa-solid fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="email" name="email" required placeholder="you@domain.com" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">{{ t.password_label }}</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="password" name="password" required minlength="4" placeholder="••••••••" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-teal-600/20 transition flex items-center justify-center gap-1.5 mt-2">
+          <span>{{ t.register_btn }}</span>
+          <i class="fa-solid fa-shield-halved text-[11px]"></i>
+        </button>
+
+        <div class="text-center pt-2">
+          <button type="button" onclick="setAuthMode('login')" class="text-xs text-teal-600 hover:text-teal-800 font-semibold">
+            {{ t.have_account }}
+          </button>
+        </div>
+      </form>
+
+    </div>
+
+    <!-- Privacy Note -->
+    <div class="text-center mt-6 text-[11px] text-slate-400 space-y-1">
+      <p><i class="fa-solid fa-lock text-[10px] mr-1 text-teal-600"></i> Row-level private encryption & isolated family storage.</p>
+    </div>
+
+  </div>
+
+  <script>
+    function setAuthMode(mode) {
+      const loginForm = document.getElementById('loginForm');
+      const registerForm = document.getElementById('registerForm');
+      const tabLogin = document.getElementById('tabLoginBtn');
+      const tabRegister = document.getElementById('tabRegisterBtn');
+
+      if (mode === 'register') {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+        tabRegister.className = 'flex-1 py-2 rounded-lg transition bg-white text-teal-700 shadow-xs';
+        tabLogin.className = 'flex-1 py-2 rounded-lg transition text-slate-500 hover:text-slate-800';
+      } else {
+        registerForm.classList.add('hidden');
+        loginForm.classList.remove('hidden');
+        tabLogin.className = 'flex-1 py-2 rounded-lg transition bg-white text-teal-700 shadow-xs';
+        tabRegister.className = 'flex-1 py-2 rounded-lg transition text-slate-500 hover:text-slate-800';
+      }
+    }
+  </script>
+</body>
+</html>
