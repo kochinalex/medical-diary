@@ -147,6 +147,19 @@
 
       <!-- ================= TAB 1: TIMELINE ================= -->
       <section id="tabTimeline" class="tab-content active space-y-3.5">
+        <!-- Primary Action: Add Activity Banner -->
+        <button onclick="openAddRecordModal()" class="w-full py-2.5 px-4 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-xl shadow-md shadow-teal-600/10 font-bold text-xs flex items-center justify-between transition active:scale-[0.99]">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-plus"></i>
+            </span>
+            <span>{{ t.add_activity_btn }}</span>
+          </div>
+          <span class="text-[11px] font-medium text-teal-100 flex items-center gap-1">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> AI Scan &amp; Autofill <i class="fa-solid fa-chevron-right text-[9px] ml-0.5"></i>
+          </span>
+        </button>
+
         <!-- Search & Sort Controls -->
         <div class="flex items-center gap-2">
           <div class="relative flex-1">
@@ -476,6 +489,22 @@
       </div>
 
       <form id="recordForm" onsubmit="submitRecord(event)" class="p-4 space-y-3 overflow-y-auto flex-1">
+        <!-- Smart AI Document Scan & Auto-fill -->
+        <div class="p-3 bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 border border-teal-200 rounded-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-bold text-teal-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-wand-magic-sparkles text-teal-600"></i>
+              <span>{{ t.scan_autofill_prompt }}</span>
+            </label>
+            <span class="text-[10px] bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full font-bold">AI Autofill</span>
+          </div>
+          <p class="text-[11px] text-teal-700 leading-tight">
+            Take a photo with your camera or select a PDF / image. The app will automatically extract and populate the date, title, doctor, clinic, and lab test values below!
+          </p>
+          <input type="file" id="recordFile" accept=".pdf,image/*" onchange="handleDocumentUpload(this)" class="w-full text-xs p-1.5 rounded-lg border border-teal-300 bg-white text-slate-700 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-teal-600 file:text-white hover:file:bg-teal-700 cursor-pointer">
+          <div id="scanStatus" class="hidden text-xs p-2.5 rounded-lg font-medium flex items-center gap-2"></div>
+        </div>
+
         <!-- Family Member Selector -->
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">{{ t.member_name }} *</label>
@@ -523,23 +552,30 @@
           <textarea id="recordNotes" rows="3" placeholder="Doctor's notes, prescriptions, diagnosis..." class="w-full text-xs p-2 rounded-lg border border-slate-300"></textarea>
         </div>
 
+        <!-- Dynamic Multi-Biomarker Section -->
         <div id="biomarkerSection" class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 hidden">
-          <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-vial text-teal-600 mr-1"></i> {{ t.optional_lab }}</label>
-          <div class="grid grid-cols-3 gap-2">
-            <input type="text" id="bmName" placeholder="{{ t.test_name }}" class="text-xs p-1.5 rounded border border-slate-300">
-            <input type="number" step="any" id="bmValue" placeholder="{{ t.test_value }}" class="text-xs p-1.5 rounded border border-slate-300">
-            <input type="text" id="bmUnit" placeholder="{{ t.test_unit }}" class="text-xs p-1.5 rounded border border-slate-300">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-vial text-teal-600"></i>
+              <span>{{ t.detected_biomarkers }}</span>
+            </label>
+            <button type="button" onclick="addBiomarkerRow()" class="text-[11px] font-semibold text-teal-600 hover:text-teal-800 flex items-center gap-1">
+              <i class="fa-solid fa-plus-circle"></i>
+              <span>{{ t.add_biomarker_row }}</span>
+            </button>
           </div>
-        </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1"><i class="fa-solid fa-paperclip mr-1"></i> {{ t.attach_doc }}</label>
-          <input type="file" id="recordFile" accept=".pdf,image/*" class="w-full text-xs p-1.5 rounded-lg border border-slate-300">
+          <div id="biomarkersContainer" class="space-y-2">
+            <!-- Dynamic rows will render here -->
+          </div>
         </div>
 
         <div class="pt-2 flex justify-end gap-2 border-t border-slate-100">
           <button type="button" onclick="closeAddRecordModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">{{ t.cancel_btn }}</button>
-          <button type="submit" class="px-5 py-2 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm">{{ t.save_btn }}</button>
+          <button type="submit" id="saveRecordBtn" class="px-5 py-2 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-check"></i>
+            <span>{{ t.save_btn }}</span>
+          </button>
         </div>
       </form>
     </div>
@@ -962,43 +998,169 @@
       if (myChart) myChart.resize();
     }
 
-    // Modals
+    // Modals & Document Scanner
+    let currentExtractedBiomarkers = [];
+
     function openAddRecordModal() {
+      const form = document.getElementById('recordForm');
+      if (form) form.reset();
       document.getElementById('recordDate').valueAsDate = new Date();
+      const scanStatus = document.getElementById('scanStatus');
+      if (scanStatus) {
+        scanStatus.className = 'hidden text-xs p-2.5 rounded-lg font-medium flex items-center gap-2';
+        scanStatus.innerHTML = '';
+      }
+      currentExtractedBiomarkers = [];
+      renderBiomarkers();
+      toggleBiomarkerInputs();
       document.getElementById('addRecordModal').classList.remove('hidden');
     }
     function closeAddRecordModal() {
       document.getElementById('addRecordModal').classList.add('hidden');
     }
-    function openAddMemberModal() {
-      document.getElementById('addMemberModal').classList.remove('hidden');
-    }
-    function closeAddMemberModal() {
-      document.getElementById('addMemberModal').classList.add('hidden');
-    }
-    function openEditProfileModal() {
-      document.getElementById('editProfileModal').classList.remove('hidden');
-    }
-    function closeEditProfileModal() {
-      document.getElementById('editProfileModal').classList.add('hidden');
-    }
-    function openAddReminderModal() {
-      document.getElementById('remDueDate').valueAsDate = new Date();
-      document.getElementById('addReminderModal').classList.remove('hidden');
-    }
-    function closeAddReminderModal() {
-      document.getElementById('addReminderModal').classList.add('hidden');
-    }
-    function toggleEmergencyModal() {
-      document.getElementById('iceModal').classList.toggle('hidden');
-    }
+
     function toggleBiomarkerInputs() {
       const cat = document.getElementById('recordCategory').value;
       const section = document.getElementById('biomarkerSection');
-      if (cat === 'test_result') {
+      if (cat === 'test_result' || currentExtractedBiomarkers.length > 0) {
         section.classList.remove('hidden');
       } else {
         section.classList.add('hidden');
+      }
+    }
+
+    function renderBiomarkers() {
+      const container = document.getElementById('biomarkersContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      if (currentExtractedBiomarkers.length === 0) {
+        container.innerHTML = `
+          <div class="text-[11px] text-slate-400 italic py-1 text-center">
+            Upload a lab report scan above to auto-detect biomarkers, or click "+ Add Biomarker" to add manually.
+          </div>
+        `;
+        return;
+      }
+
+      currentExtractedBiomarkers.forEach((bm, idx) => {
+        const row = document.createElement('div');
+        row.className = 'p-2 bg-white rounded-lg border border-slate-200 grid grid-cols-12 gap-1.5 items-center text-xs shadow-xs';
+        row.innerHTML = `
+          <div class="col-span-5">
+            <input type="text" value="${escapeHtml(bm.name || '')}" oninput="updateBiomarker(${idx}, 'name', this.value)" placeholder="Biomarker name" class="w-full p-1 rounded border border-slate-200 text-xs font-semibold text-slate-800">
+          </div>
+          <div class="col-span-3">
+            <input type="number" step="any" value="${bm.value !== null && bm.value !== undefined ? bm.value : ''}" oninput="updateBiomarker(${idx}, 'value', this.value)" placeholder="Value" class="w-full p-1 rounded border border-slate-200 text-xs text-slate-800">
+          </div>
+          <div class="col-span-3">
+            <input type="text" value="${escapeHtml(bm.unit || '')}" oninput="updateBiomarker(${idx}, 'unit', this.value)" placeholder="Unit" class="w-full p-1 rounded border border-slate-200 text-xs text-slate-600">
+          </div>
+          <div class="col-span-1 text-right">
+            <button type="button" onclick="removeBiomarkerRow(${idx})" class="text-rose-400 hover:text-rose-600 p-0.5 text-xs transition" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function updateBiomarker(idx, field, val) {
+      if (currentExtractedBiomarkers[idx]) {
+        currentExtractedBiomarkers[idx][field] = val;
+      }
+    }
+
+    function addBiomarkerRow() {
+      currentExtractedBiomarkers.push({
+        name: '',
+        value: '',
+        unit: 'mg/dL',
+        ref_min: null,
+        ref_max: null
+      });
+      document.getElementById('recordCategory').value = 'test_result';
+      document.getElementById('biomarkerSection').classList.remove('hidden');
+      renderBiomarkers();
+    }
+
+    function removeBiomarkerRow(idx) {
+      currentExtractedBiomarkers.splice(idx, 1);
+      renderBiomarkers();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function handleDocumentUpload(input) {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      const scanStatus = document.getElementById('scanStatus');
+      if (!scanStatus) return;
+
+      scanStatus.className = 'text-xs p-2.5 rounded-lg bg-teal-100/90 text-teal-900 border border-teal-300 flex items-center gap-2 block shadow-xs animate-pulse';
+      scanStatus.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles text-teal-600 fa-spin text-sm"></i> <span class="font-semibold">{{ t.scanning_document }}</span>';
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/scan-document', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          const data = result.data;
+
+          // 1. Category
+          if (data.category) {
+            document.getElementById('recordCategory').value = data.category;
+          }
+
+          // 2. Date
+          if (data.event_date) {
+            document.getElementById('recordDate').value = data.event_date;
+          }
+
+          // 3. Title
+          if (data.title) {
+            document.getElementById('recordTitle').value = data.title;
+          }
+
+          // 4. Doctor & Clinic
+          if (data.provider) {
+            document.getElementById('recordProvider').value = data.provider;
+          }
+          if (data.facility) {
+            document.getElementById('recordFacility').value = data.facility;
+          }
+
+          // 5. Notes / Prescriptions
+          if (data.notes) {
+            document.getElementById('recordNotes').value = data.notes;
+          }
+
+          // 6. Biomarkers
+          if (data.biomarkers && Array.isArray(data.biomarkers) && data.biomarkers.length > 0) {
+            currentExtractedBiomarkers = data.biomarkers;
+            document.getElementById('recordCategory').value = 'test_result';
+            document.getElementById('biomarkerSection').classList.remove('hidden');
+            renderBiomarkers();
+          }
+
+          toggleBiomarkerInputs();
+
+          scanStatus.className = 'text-xs p-2.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-2 block shadow-xs';
+          scanStatus.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> <span class="font-semibold">{{ t.scan_success }}</span>';
+        } else {
+          scanStatus.className = 'text-xs p-2.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-2 block shadow-xs';
+          scanStatus.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm"></i> <span>{{ t.scan_error }}</span>';
+        }
+      } catch (err) {
+        console.error('Scan error:', err);
+        scanStatus.className = 'text-xs p-2.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-2 block shadow-xs';
+        scanStatus.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm"></i> <span>{{ t.scan_error }}</span>';
       }
     }
 
@@ -1125,13 +1287,12 @@
       const file = document.getElementById('recordFile').files[0];
       if (file) formData.append('file', file);
 
-      const bmName = document.getElementById('bmName').value;
-      const bmVal = document.getElementById('bmValue').value;
-      const bmUnit = document.getElementById('bmUnit').value;
-      if (bmName && bmVal) {
-        formData.append('bm_name', bmName);
-        formData.append('bm_value', bmVal);
-        formData.append('bm_unit', bmUnit || 'units');
+      // Multi-biomarkers from smart scan or dynamic table
+      if (currentExtractedBiomarkers && currentExtractedBiomarkers.length > 0) {
+        const validBms = currentExtractedBiomarkers.filter(b => b.name && b.name.trim() !== '' && b.value !== null && b.value !== '');
+        if (validBms.length > 0) {
+          formData.append('biomarkers_json', JSON.stringify(validBms));
+        }
       }
 
       const res = await fetch('/api/records', {

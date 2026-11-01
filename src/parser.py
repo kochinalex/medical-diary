@@ -1,5 +1,10 @@
-﻿import re
-from typing import Dict, Any, List
+import os
+import re
+import json
+import base64
+import io
+from typing import Dict, Any, List, Optional
+import httpx
 from pypdf import PdfReader
 
 COMMON_BIOMARKER_PATTERNS = {
@@ -24,16 +29,20 @@ DEFAULT_UNITS = {
     "TSH": ("uIU/mL", 0.4, 4.0)
 }
 
-def extract_text_from_pdf(file_path: str) -> str:
+def extract_text_from_pdf(file_path_or_bytes) -> str:
     text = ""
     try:
-        reader = PdfReader(file_path)
+        if isinstance(file_path_or_bytes, bytes):
+            stream = io.BytesIO(file_path_or_bytes)
+            reader = PdfReader(stream)
+        else:
+            reader = PdfReader(file_path_or_bytes)
         for page in reader.pages:
             t = page.extract_text()
             if t:
                 text += t + "\n"
     except Exception as e:
-        print(f"Error reading PDF {file_path}: {e}")
+        print(f"Error reading PDF: {e}")
     return text
 
 def parse_medical_document(text: str) -> Dict[str, Any]:
@@ -58,12 +67,112 @@ def parse_medical_document(text: str) -> Dict[str, Any]:
             except Exception:
                 pass
 
-    # Extract date if found
     date_match = re.search(r"\b(20[2-3][0-9][-/.](?:0[1-9]|1[0-2])[-/.](?:0[1-9]|[12][0-9]|3[01]))\b", text)
     extracted_date = date_match.group(1).replace("/", "-").replace(".", "-") if date_match else None
 
+    # Simple provider and facility heuristics
+    provider = ""
+    facility = ""
+    doc_match = re.search(r"(?:dr\.?|doctor|physician)\s+([a-z\s]+)", text, re.IGNORECASE)
+    if doc_match:
+        provider = doc_match.group(0).strip().title()
+
+    clinic_match = re.search(r"([a-z0-9\s]+(?:clinic|hospital|laboratory|lab|center|health|poliklinika|bolnica))", text, re.IGNORECASE)
+    if clinic_match:
+        facility = clinic_match.group(1).strip().title()
+
     return {
-        "raw_text": text[:1000],
-        "extracted_date": extracted_date,
+        "category": "test_result" if biomarkers else "visit",
+        "event_date": extracted_date,
+        "title": "Medical Record" if not biomarkers else "Lab Test Results",
+        "provider": provider,
+        "facility": facility,
+        "notes": text[:500].strip(),
         "biomarkers": biomarkers
     }
+
+def extract_from_document(file_bytes: bytes, filename: str, mime_type: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Extracts structured medical record data from an uploaded scan, image, or PDF.
+    First tries Gemini multimodal AI for high-accuracy multilingual extraction.
+    Falls back gracefully to offline regex/pypdf if API key is not present or call fails.
+    """
+    if not mime_type:
+        ext = os.path.splitext(filename.lower())[1]
+        if ext in [".jpg", ".jpeg"]:
+            mime_type = "image/jpeg"
+        elif ext == ".png":
+            mime_type = "image/png"
+        elif ext == ".webp":
+            mime_type = "image/webp"
+        else:
+            mime_type = "application/pdf"
+
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if api_key:
+        try:
+            b64_data = base64.b64encode(file_bytes).decode("utf-8")
+            prompt = """You are an expert clinical document analyzer.
+Analyze this medical document (lab report, doctor's visit summary, prescription, discharge summary, or sickness note).
+Extract all relevant fields into a single JSON object with this exact schema:
+{
+  "category": "visit" | "test_result" | "sickness" | "intervention" | "comment",
+  "event_date": "YYYY-MM-DD",
+  "title": "Short descriptive title (e.g. Complete Blood Count & Iron Panel, Annual Pediatric Checkup, Dental Cleaning)",
+  "provider": "Doctor / Physician / Specialist name (e.g. Dr. Sarah Vance) or empty string",
+  "facility": "Clinic / Hospital / Laboratory name (e.g. Central Medical Lab) or empty string",
+  "notes": "Concise summary of findings, diagnosis, prescriptions, or physician advice",
+  "biomarkers": [
+    {
+      "name": "Standard biomarker name (e.g. Ferritin, Vitamin D, Fasting Glucose, Total Cholesterol, LDL, HDL, HbA1c, TSH, Hemoglobin, etc.)",
+      "value": numeric_value_float_or_null,
+      "unit": "standard measurement unit",
+      "ref_min": numeric_lower_reference_limit_or_null,
+      "ref_max": numeric_upper_reference_limit_or_null
+    }
+  ]
+}
+If event_date is missing, use current date. Ensure category matches document type accurately.
+Return ONLY valid JSON.
+"""
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {"inlineData": {"mimeType": mime_type, "data": b64_data}}
+                    ]
+                }],
+                "generationConfig": {
+                    "responseMimeType": "application/json"
+                }
+            }
+            with httpx.Client(timeout=25.0) as client:
+                res = client.post(url, json=payload)
+                if res.status_code == 200:
+                    resp_json = res.json()
+                    candidates = resp_json.get("candidates", [])
+                    if candidates:
+                        text_part = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                        data = json.loads(text_part)
+                        if isinstance(data, list) and len(data) > 0:
+                            data = data[0]
+                        if isinstance(data, dict):
+                            # Ensure clean structure
+                            return {
+                                "category": data.get("category", "visit"),
+                                "event_date": data.get("event_date"),
+                                "title": data.get("title", "Medical Record"),
+                                "provider": data.get("provider", ""),
+                                "facility": data.get("facility", ""),
+                                "notes": data.get("notes", ""),
+                                "biomarkers": data.get("biomarkers", [])
+                            }
+        except Exception as e:
+            print(f"Gemini document scan error, falling back to offline parser: {e}")
+
+    # Fallback to local offline parser
+    raw_text = ""
+    if mime_type == "application/pdf" or filename.lower().endswith(".pdf"):
+        raw_text = extract_text_from_pdf(file_bytes)
+    return parse_medical_document(raw_text)

@@ -103,7 +103,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "import_btn": "Import Now",
         "import_success": "Medical records imported successfully!",
         "select_file_prompt": "Select a .json file to import",
-        "export_data_btn": "Export Backup (JSON)"
+        "export_data_btn": "Export Backup (JSON)",
+        "add_activity_btn": "+ Add Activity",
+        "scan_autofill_prompt": "Scan Document / Photo (AI Auto-fills form)",
+        "scanning_document": "Analyzing document with AI & auto-filling fields...",
+        "scan_success": "Medical details auto-filled from document! Review and edit if needed.",
+        "scan_error": "Could not auto-fill automatically. You can fill the fields manually.",
+        "detected_biomarkers": "Detected Lab Biomarkers",
+        "add_biomarker_row": "+ Add Biomarker"
     },
     "ru": {
         "app_title": "Медицинский Дневник",
@@ -206,7 +213,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "import_btn": "Импортировать",
         "import_success": "Медицинские данные успешно импортированы!",
         "select_file_prompt": "Выберите файл .json для импорта",
-        "export_data_btn": "Экспорт архива (JSON)"
+        "export_data_btn": "Экспорт архива (JSON)",
+        "add_activity_btn": "+ Добавить запись",
+        "scan_autofill_prompt": "Сканировать документ / фото (Автозаполнение ИИ)",
+        "scanning_document": "Анализируем документ с помощью ИИ и заполняем поля...",
+        "scan_success": "Данные успешно извлечены! Проверьте и сохраните.",
+        "scan_error": "Не удалось распознать автоматически. Вы можете заполнить поля вручную.",
+        "detected_biomarkers": "Обнаруженные лабораторные показатели",
+        "add_biomarker_row": "+ Добавить показатель"
     },
     "sr": {
         "app_title": "Medicinski Dnevnik",
@@ -309,7 +323,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "import_btn": "Uvezi podatke",
         "import_success": "Zdravstveni zapisi su uspešno uvezeni!",
         "select_file_prompt": "Izaberite .json datoteku za uvoz",
-        "export_data_btn": "Izvoz rezervne kopije (JSON)"
+        "export_data_btn": "Izvoz rezervne kopije (JSON)",
+        "add_activity_btn": "+ Dodaj aktivnost",
+        "scan_autofill_prompt": "Skeniraj dokument / sliku (AI automatsko popunjavanje)",
+        "scanning_document": "Analiziramo dokument pomoću AI i izdvajamo podatke...",
+        "scan_success": "Podaci su uspešno izvučeni! Pregledajte i sačuvajte.",
+        "scan_error": "Nije moguće automatski izvući podatke. Možete ih uneti ručno.",
+        "detected_biomarkers": "Pronađeni laboratorijski parametri",
+        "add_biomarker_row": "+ Dodaj parametar"
     }
 }
 

@@ -19,7 +19,7 @@ from .database import (
     add_reminder, delete_reminder, clear_all_records, import_user_health_data
 )
 from .advisory import generate_health_advisory
-from .parser import extract_text_from_pdf, parse_medical_document
+from .parser import extract_text_from_pdf, parse_medical_document, extract_from_document
 from .i18n import (
     get_translations, localize_record, localize_reminder,
     localize_profile, localize_biomarker_name
@@ -231,6 +231,7 @@ async def create_record(
     bm_name: Optional[str] = Form(None),
     bm_value: Optional[float] = Form(None),
     bm_unit: Optional[str] = Form(""),
+    biomarkers_json: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None)
 ):
     user_id = get_current_user_id(request)
@@ -249,7 +250,8 @@ async def create_record(
         with open(saved_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        if file.filename.lower().endswith(".pdf"):
+        # If biomarkers_json not already provided, try extracting
+        if not biomarkers_json and file.filename.lower().endswith(".pdf"):
             pdf_text = extract_text_from_pdf(saved_file_path)
             parsed = parse_medical_document(pdf_text)
             extracted_biomarkers = parsed.get("biomarkers", [])
@@ -266,6 +268,7 @@ async def create_record(
         file_path=saved_file_path
     )
 
+    # 1. Save single biomarker input if provided
     if bm_name and bm_value is not None:
         add_biomarker(
             user_id=user_id,
@@ -279,6 +282,34 @@ async def create_record(
             test_date=event_date
         )
 
+    # 2. Save multi-biomarkers from JSON if provided
+    if biomarkers_json:
+        try:
+            b_list = json.loads(biomarkers_json)
+            if isinstance(b_list, list):
+                for b in b_list:
+                    if b.get("name") and b.get("value") is not None:
+                        try:
+                            v = float(b["value"])
+                            rmin = float(b["ref_min"]) if b.get("ref_min") is not None and str(b.get("ref_min")).strip() != "" else None
+                            rmax = float(b["ref_max"]) if b.get("ref_max") is not None and str(b.get("ref_max")).strip() != "" else None
+                            add_biomarker(
+                                user_id=user_id,
+                                profile_id=profile_id,
+                                record_id=rec_id,
+                                name=str(b["name"]).strip(),
+                                value=v,
+                                unit=str(b.get("unit") or "units").strip(),
+                                ref_min=rmin,
+                                ref_max=rmax,
+                                test_date=event_date
+                            )
+                        except (ValueError, TypeError):
+                            pass
+        except Exception as e:
+            print("Error parsing biomarkers_json:", e)
+
+    # 3. Save extracted fallback biomarkers if not already stored
     for bm in extracted_biomarkers:
         add_biomarker(
             user_id=user_id,
@@ -293,6 +324,21 @@ async def create_record(
         )
 
     return {"status": "success", "record_id": rec_id}
+
+@app.post("/api/scan-document")
+async def scan_document_endpoint(request: Request, file: UploadFile = File(...)):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        content = await file.read()
+        filename = file.filename or "document.pdf"
+        mime_type = file.content_type
+        extracted = extract_from_document(content, filename=filename, mime_type=mime_type)
+        return {"status": "success", "data": extracted}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @app.post("/api/profiles")
 async def create_family_member(
