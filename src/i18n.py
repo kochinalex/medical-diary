@@ -110,7 +110,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "scan_success": "Medical details auto-filled from document! Review and edit if needed.",
         "scan_error": "Could not auto-fill automatically. You can fill the fields manually.",
         "detected_biomarkers": "Detected Lab Biomarkers",
-        "add_biomarker_row": "+ Add Biomarker"
+        "add_biomarker_row": "+ Add Biomarker",
+        "view_attached_doc": "View Attached Document",
+        "translate_btn": "Translate",
+        "translating_msg": "Translating..."
     },
     "ru": {
         "app_title": "Медицинский Дневник",
@@ -220,7 +223,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "scan_success": "Данные успешно извлечены! Проверьте и сохраните.",
         "scan_error": "Не удалось распознать автоматически. Вы можете заполнить поля вручную.",
         "detected_biomarkers": "Обнаруженные лабораторные показатели",
-        "add_biomarker_row": "+ Добавить показатель"
+        "add_biomarker_row": "+ Добавить показатель",
+        "view_attached_doc": "Открыть прикрепленный документ",
+        "translate_btn": "Перевести",
+        "translating_msg": "Переводим..."
     },
     "sr": {
         "app_title": "Medicinski Dnevnik",
@@ -330,7 +336,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "scan_success": "Podaci su uspešno izvučeni! Pregledajte i sačuvajte.",
         "scan_error": "Nije moguće automatski izvući podatke. Možete ih uneti ručno.",
         "detected_biomarkers": "Pronađeni laboratorijski parametri",
-        "add_biomarker_row": "+ Dodaj parametar"
+        "add_biomarker_row": "+ Dodaj parametar",
+        "view_attached_doc": "Otvori priloženi dokument",
+        "translate_btn": "Prevedi",
+        "translating_msg": "Prevođenje..."
     }
 }
 

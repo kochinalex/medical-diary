@@ -411,6 +411,44 @@ def get_all_records(category: Optional[str] = None, profile_id: Optional[int] = 
     conn.close()
     return rows
 
+def get_record(record_id: int, user_id: int = 1) -> Optional[Dict[str, Any]]:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT r.*, p.name as member_name, p.role as member_role, p.avatar_color as member_color
+    FROM records r
+    LEFT JOIN profiles p ON r.profile_id = p.id
+    WHERE r.id = ? AND r.user_id = ?
+    """, (record_id, user_id))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+    r = dict(row)
+    cursor.execute("SELECT * FROM biomarkers WHERE record_id = ? AND user_id = ?", (record_id, user_id))
+    r["biomarkers"] = [dict(b) for b in cursor.fetchall()]
+    conn.close()
+    return r
+
+def update_record(record_id: int, data: Dict[str, Any], user_id: int = 1) -> bool:
+    conn = get_connection()
+    cursor = conn.cursor()
+    fields = []
+    values = []
+    for k in ["title", "notes", "category", "provider", "facility", "event_date"]:
+        if k in data and data[k] is not None:
+            fields.append(f"{k} = ?")
+            values.append(data[k])
+    if not fields:
+        conn.close()
+        return False
+    values.extend([record_id, user_id])
+    cursor.execute(f"UPDATE records SET {', '.join(fields)} WHERE id = ? AND user_id = ?", values)
+    conn.commit()
+    conn.close()
+    return True
+
+
 def get_biomarker_history(profile_id: Optional[int] = None, user_id: int = 1) -> Dict[str, List[Dict[str, Any]]]:
     conn = get_connection()
     cursor = conn.cursor()

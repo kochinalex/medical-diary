@@ -91,10 +91,10 @@ def parse_medical_document(text: str) -> Dict[str, Any]:
         "biomarkers": biomarkers
     }
 
-def extract_from_document(file_bytes: bytes, filename: str, mime_type: Optional[str] = None) -> Dict[str, Any]:
+def extract_from_document(file_bytes: bytes, filename: str, mime_type: Optional[str] = None, target_lang: str = "en") -> Dict[str, Any]:
     """
     Extracts structured medical record data from an uploaded scan, image, or PDF.
-    First tries Gemini multimodal AI for high-accuracy multilingual extraction.
+    First tries Gemini multimodal AI for high-accuracy multilingual extraction and automatic translation to target_lang.
     Falls back gracefully to offline regex/pypdf if API key is not present or call fails.
     """
     if not mime_type:
@@ -108,30 +108,38 @@ def extract_from_document(file_bytes: bytes, filename: str, mime_type: Optional[
         else:
             mime_type = "application/pdf"
 
+    LANG_MAP = {
+        "ru": "Russian",
+        "en": "English",
+        "sr": "Serbian"
+    }
+    target_lang_name = LANG_MAP.get((target_lang or "en").lower(), "English")
+
     api_key = os.environ.get("GEMINI_API_KEY")
     if api_key:
         try:
             b64_data = base64.b64encode(file_bytes).decode("utf-8")
-            prompt = """You are an expert clinical document analyzer.
+            prompt = f"""You are an expert clinical document analyzer and medical translator.
 Analyze this medical document (lab report, doctor's visit summary, prescription, discharge summary, or sickness note).
 Extract all relevant fields into a single JSON object with this exact schema:
-{
+{{
   "category": "visit" | "test_result" | "sickness" | "intervention" | "comment",
   "event_date": "YYYY-MM-DD",
-  "title": "Short descriptive title (e.g. Complete Blood Count & Iron Panel, Annual Pediatric Checkup, Dental Cleaning)",
-  "provider": "Doctor / Physician / Specialist name (e.g. Dr. Sarah Vance) or empty string",
-  "facility": "Clinic / Hospital / Laboratory name (e.g. Central Medical Lab) or empty string",
-  "notes": "Concise summary of findings, diagnosis, prescriptions, or physician advice",
+  "title": "Short descriptive title translated into {target_lang_name} (e.g. MRI of Right Knee, Comprehensive Blood Panel)",
+  "provider": "Doctor / Physician / Specialist name (keep in original/recognizable form) or empty string",
+  "facility": "Clinic / Hospital / Laboratory name (keep in original/recognizable form) or empty string",
+  "notes": "Concise clinical summary of findings, diagnosis, conclusions, and physician advice translated accurately into {target_lang_name}",
   "biomarkers": [
-    {
-      "name": "Standard biomarker name (e.g. Ferritin, Vitamin D, Fasting Glucose, Total Cholesterol, LDL, HDL, HbA1c, TSH, Hemoglobin, etc.)",
+    {{
+      "name": "Standard biomarker name translated into {target_lang_name} (e.g. Ferritin, Vitamin D, Fasting Glucose)",
       "value": numeric_value_float_or_null,
       "unit": "standard measurement unit",
       "ref_min": numeric_lower_reference_limit_or_null,
       "ref_max": numeric_upper_reference_limit_or_null
-    }
+    }}
   ]
-}
+}}
+IMPORTANT: You MUST translate the 'title', 'notes' (all clinical findings, conclusions, and advice), and biomarker names into {target_lang_name} to match the user's diary language. Keep physician and facility names recognizable.
 If event_date is missing, use current date. Ensure category matches document type accurately.
 Return ONLY valid JSON.
 """
@@ -176,3 +184,52 @@ Return ONLY valid JSON.
     if mime_type == "application/pdf" or filename.lower().endswith(".pdf"):
         raw_text = extract_text_from_pdf(file_bytes)
     return parse_medical_document(raw_text)
+
+def translate_medical_text(title: str, notes: str, target_lang: str = "en") -> Dict[str, str]:
+    """
+    Translates medical record title and clinical notes into the target language using Gemini.
+    """
+    LANG_MAP = {
+        "ru": "Russian",
+        "en": "English",
+        "sr": "Serbian"
+    }
+    target_lang_name = LANG_MAP.get((target_lang or "en").lower(), "English")
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return {"title": title, "notes": notes}
+
+    try:
+        prompt = f"""Translate the following medical record title and clinical notes into {target_lang_name} with high clinical accuracy.
+Title: {title}
+Notes: {notes}
+
+Return a single JSON object with this exact schema:
+{{
+  "title": "Translated title in {target_lang_name}",
+  "notes": "Translated clinical notes in {target_lang_name}"
+}}
+Return ONLY valid JSON.
+"""
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"responseMimeType": "application/json"}
+        }
+        with httpx.Client(timeout=20.0) as client:
+            res = client.post(url, json=payload)
+            if res.status_code == 200:
+                candidates = res.json().get("candidates", [])
+                if candidates:
+                    text_part = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                    data = json.loads(text_part)
+                    if isinstance(data, dict):
+                        return {
+                            "title": data.get("title", title),
+                            "notes": data.get("notes", notes)
+                        }
+    except Exception as e:
+        print(f"Translation error: {e}")
+
+    return {"title": title, "notes": notes}
+

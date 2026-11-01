@@ -102,3 +102,51 @@ def test_create_record_with_multi_biomarkers_json(auth_client):
     assert "HbA1c" in history
     hba1c_entries = history["HbA1c"]
     assert any(h["value"] == 5.2 for h in hba1c_entries)
+
+def test_get_record_file_unauthenticated():
+    unauth = TestClient(app)
+    res = unauth.get("/api/records/1/file")
+    assert res.status_code == 401
+
+def test_get_record_file_not_found(auth_client):
+    res = auth_client.get("/api/records/99999/file")
+    assert res.status_code == 404
+
+def test_get_record_file_success(auth_client, tmp_path):
+    from src.database import add_record
+    dummy_file = tmp_path / "test_doc.jpg"
+    dummy_file.write_bytes(b"\xFF\xD8\xFF\xE0dummyjpgcontent")
+
+    rec_id = add_record(
+        category="visit",
+        title="Test Attached File",
+        event_date="2026-10-30",
+        file_path=str(dummy_file),
+        user_id=1
+    )
+
+    res = auth_client.get(f"/api/records/{rec_id}/file")
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("image/jpeg")
+    assert b"dummyjpgcontent" in res.content
+
+def test_translate_record_endpoint(auth_client):
+    from src.database import add_record
+    rec_id = add_record(
+        category="visit",
+        title="Pregled lekara",
+        event_date="2026-10-30",
+        notes="Pacijent ima bol u kolenu.",
+        user_id=1
+    )
+
+    res = auth_client.post(
+        f"/api/records/{rec_id}/translate",
+        data={"target_lang": "ru"}
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    assert "title" in data
+    assert "notes" in data
+

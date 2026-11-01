@@ -234,10 +234,14 @@
                     </span>
                     {% endif %}
                   </div>
-                  <h3 class="font-semibold text-slate-900 text-sm leading-snug mt-0.5">{{ r.title }}</h3>
+                  <h3 id="rec-title-{{ r.id }}" class="font-semibold text-slate-900 text-sm leading-snug mt-0.5">{{ r.title }}</h3>
                 </div>
                 <div class="flex items-center gap-1.5 flex-shrink-0 ml-2">
                   <span class="text-[11px] text-slate-400 font-medium whitespace-nowrap">{{ r.event_date }}</span>
+                  <button onclick="translateRecordCard({{ r.id }}, this)" title="{{ t.translate_btn }}" class="text-slate-400 hover:text-teal-700 hover:bg-teal-50 transition px-1.5 py-1 rounded text-xs flex items-center gap-1 leading-none border border-slate-100 hover:border-teal-200">
+                    <i class="fa-solid fa-language text-xs"></i>
+                    <span class="text-[10px] font-semibold hidden sm:inline">{{ t.translate_btn }}</span>
+                  </button>
                   <button onclick="confirmDeleteRecord({{ r.id }})" title="{{ t.delete_record_btn }}" class="text-slate-300 hover:text-rose-600 transition p-1 rounded hover:bg-rose-50 leading-none">
                     <i class="fa-regular fa-trash-can text-xs"></i>
                   </button>
@@ -252,7 +256,7 @@
               {% endif %}
 
               {% if r.notes %}
-              <p class="text-xs text-slate-600 mt-1.5 bg-slate-50 rounded-lg p-2 leading-relaxed border border-slate-100">
+              <p id="rec-notes-{{ r.id }}" class="text-xs text-slate-600 mt-1.5 bg-slate-50 rounded-lg p-2 leading-relaxed border border-slate-100">
                 {{ r.notes }}
               </p>
               {% endif %}
@@ -275,8 +279,13 @@
               {% endif %}
 
               {% if r.file_path %}
-              <div class="mt-2 text-[11px] text-teal-700 flex items-center gap-1 font-medium">
-                <i class="fa-solid fa-paperclip"></i> {{ t.attached_doc }}
+              <div class="mt-2.5 flex items-center gap-2">
+                <a href="/api/records/{{ r.id }}/file" target="_blank" rel="noopener noreferrer"
+                   class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-teal-800 bg-teal-50 hover:bg-teal-100 hover:text-teal-900 border border-teal-200 rounded-lg transition-all shadow-2xs group">
+                  <i class="fa-solid fa-paperclip text-teal-600 group-hover:rotate-45 transition-transform"></i>
+                  <span>{{ t.view_attached_doc }}</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-teal-500"></i>
+                </a>
               </div>
               {% endif %}
             </div>
@@ -1145,6 +1154,7 @@
 
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('lang', '{{ lang }}');
 
         const res = await fetch('/api/scan-document', {
           method: 'POST',
@@ -1494,6 +1504,51 @@
           }
         }
       });
+    }
+
+    async function translateRecordCard(recordId, btn) {
+      if (!btn) return;
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> <span class="text-[10px]">{{ t.translating_msg }}</span>';
+
+      try {
+        const formData = new FormData();
+        formData.append('target_lang', '{{ lang }}');
+        const res = await fetch(`/api/records/${recordId}/translate`, {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const titleEl = document.getElementById(`rec-title-${recordId}`);
+          if (titleEl && data.title) {
+            titleEl.textContent = data.title;
+            titleEl.classList.add('transition-colors', 'duration-500', 'text-teal-700');
+            setTimeout(() => titleEl.classList.remove('text-teal-700'), 2000);
+          }
+          const notesEl = document.getElementById(`rec-notes-${recordId}`);
+          if (notesEl && data.notes) {
+            notesEl.textContent = data.notes;
+            notesEl.classList.add('transition-colors', 'duration-500', 'bg-teal-50', 'border-teal-200');
+            setTimeout(() => {
+              notesEl.classList.remove('bg-teal-50', 'border-teal-200');
+            }, 2000);
+          }
+          btn.innerHTML = '<i class="fa-solid fa-check text-emerald-600 text-xs"></i> <span class="text-[10px] text-emerald-700 font-semibold">{{ t.translate_btn }}</span>';
+          setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+          }, 3000);
+        } else {
+          btn.innerHTML = originalHtml;
+          btn.disabled = false;
+        }
+      } catch (err) {
+        console.error('Translation failed:', err);
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+      }
     }
 
     window.addEventListener('DOMContentLoaded', () => {

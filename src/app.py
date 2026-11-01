@@ -1,9 +1,10 @@
 import os
 import json
 import shutil
+import mimetypes
 from typing import Optional
 from fastapi import FastAPI, Request, Response, Form, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -14,12 +15,15 @@ from .auth import (
 from .database import (
     init_db, create_user, get_user_by_email, get_user_by_id,
     get_profiles, get_profile, add_profile, update_profile, delete_profile,
-    get_all_records, add_record, add_biomarker, delete_record,
+    get_all_records, get_record, update_record, add_record, add_biomarker, delete_record,
     get_biomarker_history, get_all_reminders, toggle_reminder,
     add_reminder, delete_reminder, clear_all_records, import_user_health_data
 )
 from .advisory import generate_health_advisory
-from .parser import extract_text_from_pdf, parse_medical_document, extract_from_document
+from .parser import (
+    extract_text_from_pdf, parse_medical_document,
+    extract_from_document, translate_medical_text
+)
 from .i18n import (
     get_translations, localize_record, localize_reminder,
     localize_profile, localize_biomarker_name
@@ -326,7 +330,11 @@ async def create_record(
     return {"status": "success", "record_id": rec_id}
 
 @app.post("/api/scan-document")
-async def scan_document_endpoint(request: Request, file: UploadFile = File(...)):
+async def scan_document_endpoint(
+    request: Request,
+    file: UploadFile = File(...),
+    lang: Optional[str] = Form(None)
+):
     user_id = get_current_user_id(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -335,10 +343,68 @@ async def scan_document_endpoint(request: Request, file: UploadFile = File(...))
         content = await file.read()
         filename = file.filename or "document.pdf"
         mime_type = file.content_type
-        extracted = extract_from_document(content, filename=filename, mime_type=mime_type)
+        target_lang = lang or request.cookies.get("lang") or "en"
+        extracted = extract_from_document(content, filename=filename, mime_type=mime_type, target_lang=target_lang)
         return {"status": "success", "data": extracted}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+@app.get("/api/records/{record_id}/file")
+async def get_record_file(request: Request, record_id: int):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    record = get_record(record_id, user_id=user_id)
+    if not record or not record.get("file_path"):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = record["file_path"]
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    mime_type, _ = mimetypes.guess_type(file_path)
+    filename = os.path.basename(file_path)
+    return FileResponse(
+        file_path,
+        media_type=mime_type or "application/octet-stream",
+        filename=filename,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
+    )
+
+@app.post("/api/records/{record_id}/translate")
+async def translate_record_endpoint(
+    request: Request,
+    record_id: int,
+    target_lang: Optional[str] = Form(None)
+):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    record = get_record(record_id, user_id=user_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found")
+
+    lang_code = target_lang or request.cookies.get("lang") or "en"
+    translated = translate_medical_text(
+        title=record.get("title", ""),
+        notes=record.get("notes", ""),
+        target_lang=lang_code
+    )
+
+    update_record(record_id, {
+        "title": translated["title"],
+        "notes": translated["notes"]
+    }, user_id=user_id)
+
+    return {
+        "status": "success",
+        "title": translated["title"],
+        "notes": translated["notes"],
+        "lang": lang_code
+    }
+
 
 @app.post("/api/profiles")
 async def create_family_member(
