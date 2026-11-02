@@ -30,6 +30,8 @@ class DbAdapter:
     def __init__(self, turso_url=None, turso_token=None, local_path=None):
         self.is_turso = bool(turso_url and libsql_client)
         if self.is_turso:
+            if turso_url.startswith("libsql://"):
+                turso_url = "https://" + turso_url[len("libsql://"):]
             self.client = libsql_client.create_client_sync(url=turso_url, auth_token=turso_token)
             self._res = None
             self._idx = 0
@@ -93,7 +95,7 @@ def get_connection():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     return DbAdapter(local_path=DB_PATH)
 
-def init_db():
+def _run_init_db():
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -249,6 +251,30 @@ def init_db():
         conn.commit()
 
     conn.close()
+
+def init_db():
+    global TURSO_DATABASE_URL
+    if TURSO_DATABASE_URL and libsql_client:
+        try:
+            test_conn = get_connection()
+            test_cur = test_conn.cursor()
+            test_cur.execute("SELECT 1")
+            test_conn.close()
+            print("[INFO] Successfully connected to Turso Cloud SQLite database.")
+        except Exception as e:
+            print(f"[WARNING] Remote Turso pre-flight check failed: {e}")
+            print("[INFO] Reverting to local SQLite database so the application boots safely.")
+            TURSO_DATABASE_URL = ""
+
+    try:
+        _run_init_db()
+    except Exception as e:
+        if TURSO_DATABASE_URL:
+            print(f"[WARNING] Turso initialization failed: {e}. Falling back to local SQLite.")
+            TURSO_DATABASE_URL = ""
+            _run_init_db()
+        else:
+            raise e
 
 def seed_profiles_and_family(cursor):
     # Check if legacy single profile exists to copy over
