@@ -3,7 +3,9 @@ import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "medical_diary.db")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
+DB_PATH = os.path.join(DATA_DIR, "medical_diary.db")
 
 def get_connection():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -117,20 +119,40 @@ def init_db():
 
     conn.commit()
 
-    # Migrate or create default primary user (User 1)
-    cursor.execute("SELECT COUNT(*) FROM users")
-    if cursor.fetchone()[0] == 0:
-        from .auth import hash_password
-        default_pw = hash_password("admin123")
+    # Seed Admin / Primary User(s)
+    from .auth import hash_password
+    admin_email = os.environ.get("ADMIN_EMAIL", "alex@medical.diary").lower().strip()
+    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    admin_name = os.environ.get("ADMIN_NAME", "Alex Kochina")
+
+    # 1. Ensure primary default user (alex@medical.diary) exists
+    cursor.execute("SELECT id FROM users WHERE lower(email) = 'alex@medical.diary'")
+    if not cursor.fetchone():
         cursor.execute("""
-        INSERT INTO users (id, email, password_hash, full_name)
-        VALUES (1, 'alex@medical.diary', ?, 'Alex Kochina')
-        """, (default_pw,))
-        cursor.execute("UPDATE profiles SET user_id = 1 WHERE user_id IS NULL OR user_id = 0")
-        cursor.execute("UPDATE records SET user_id = 1 WHERE user_id IS NULL OR user_id = 0")
-        cursor.execute("UPDATE biomarkers SET user_id = 1 WHERE user_id IS NULL OR user_id = 0")
-        cursor.execute("UPDATE reminders SET user_id = 1 WHERE user_id IS NULL OR user_id = 0")
+        INSERT INTO users (email, password_hash, full_name)
+        VALUES ('alex@medical.diary', ?, 'Alex Kochina')
+        """, (hash_password("admin123"),))
         conn.commit()
+
+    # 2. If custom ADMIN_EMAIL configured, ensure it exists with specified password
+    if admin_email and admin_email != 'alex@medical.diary':
+        cursor.execute("SELECT id FROM users WHERE lower(email) = ?", (admin_email,))
+        row = cursor.fetchone()
+        if not row:
+            cursor.execute("""
+            INSERT INTO users (email, password_hash, full_name)
+            VALUES (?, ?, ?)
+            """, (admin_email, hash_password(admin_password), admin_name))
+            u_id = cursor.lastrowid
+            cursor.execute("""
+            INSERT INTO profiles (user_id, name, role, is_default, avatar_color)
+            VALUES (?, ?, 'Self', 1, '#0d9488')
+            """, (u_id, admin_name))
+            conn.commit()
+        else:
+            if os.environ.get("ADMIN_PASSWORD"):
+                cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(admin_password), row[0]))
+                conn.commit()
 
     # Seed Profiles if empty
     cursor.execute("SELECT COUNT(*) FROM profiles")
