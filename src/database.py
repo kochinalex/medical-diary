@@ -15,6 +15,17 @@ DB_PATH = os.path.join(DATA_DIR, "medical_diary.db")
 TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL", "").strip()
 TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "").strip()
 
+_TURSO_CLIENT = None
+
+def _get_turso_client():
+    global _TURSO_CLIENT
+    if _TURSO_CLIENT is None and TURSO_DATABASE_URL and libsql_client:
+        url = TURSO_DATABASE_URL
+        if url.startswith("libsql://"):
+            url = "https://" + url[len("libsql://"):]
+        _TURSO_CLIENT = libsql_client.create_client_sync(url=url, auth_token=TURSO_AUTH_TOKEN)
+    return _TURSO_CLIENT
+
 class LibsqlRow(collections.abc.Mapping):
     def __init__(self, cols, row):
         self.cols = cols
@@ -27,12 +38,17 @@ class LibsqlRow(collections.abc.Mapping):
         return len(self.cols)
 
 class DbAdapter:
-    def __init__(self, turso_url=None, turso_token=None, local_path=None):
-        self.is_turso = bool(turso_url and libsql_client)
+    def __init__(self, turso_url=None, turso_token=None, local_path=None, client=None):
+        self.is_turso = bool((turso_url or client) and libsql_client)
         if self.is_turso:
-            if turso_url.startswith("libsql://"):
-                turso_url = "https://" + turso_url[len("libsql://"):]
-            self.client = libsql_client.create_client_sync(url=turso_url, auth_token=turso_token)
+            if client:
+                self.client = client
+                self._owns_client = False
+            else:
+                if turso_url and turso_url.startswith("libsql://"):
+                    turso_url = "https://" + turso_url[len("libsql://"):]
+                self.client = libsql_client.create_client_sync(url=turso_url, auth_token=turso_token)
+                self._owns_client = True
             self._res = None
             self._idx = 0
             self.lastrowid = None
@@ -41,6 +57,7 @@ class DbAdapter:
             self.conn = sqlite3.connect(local_path)
             self.conn.row_factory = sqlite3.Row
             self.conn.execute("PRAGMA foreign_keys = ON")
+            self._owns_client = True
 
     def cursor(self):
         return self if self.is_turso else self.conn.cursor()
@@ -85,12 +102,17 @@ class DbAdapter:
 
     def close(self):
         if self.is_turso:
-            self.client.close()
+            if self._owns_client:
+                self.client.close()
         else:
             self.conn.close()
 
 def get_connection():
+    global TURSO_DATABASE_URL
     if TURSO_DATABASE_URL and libsql_client:
+        c = _get_turso_client()
+        if c:
+            return DbAdapter(client=c)
         return DbAdapter(turso_url=TURSO_DATABASE_URL, turso_token=TURSO_AUTH_TOKEN)
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     return DbAdapter(local_path=DB_PATH)
@@ -265,6 +287,12 @@ def init_db():
             print(f"[WARNING] Remote Turso pre-flight check failed: {e}")
             print("[INFO] Reverting to local SQLite database so the application boots safely.")
             TURSO_DATABASE_URL = ""
+            if _TURSO_CLIENT:
+                try:
+                    _TURSO_CLIENT.close()
+                except Exception:
+                    pass
+                _TURSO_CLIENT = None
 
     try:
         _run_init_db()
@@ -541,9 +569,22 @@ def get_all_records(category: Optional[str] = None, profile_id: Optional[int] = 
     cursor.execute(query, params)
     rows = [dict(row) for row in cursor.fetchall()]
 
-    for r in rows:
-        cursor.execute("SELECT * FROM biomarkers WHERE record_id = ? AND user_id = ?", (r["id"], user_id))
-        r["biomarkers"] = [dict(b) for b in cursor.fetchall()]
+    if rows:
+        record_ids = [r["id"] for r in rows]
+        placeholders = ",".join("?" * len(record_ids))
+        cursor.execute(f"SELECT * FROM biomarkers WHERE record_id IN ({placeholders}) AND user_id = ?", record_ids + [user_id])
+        all_b = cursor.fetchall()
+        b_map = {}
+        for b in all_b:
+            rid = b["record_id"]
+            if rid not in b_map:
+                b_map[rid] = []
+            b_map[rid].append(dict(b))
+        for r in rows:
+            r["biomarkers"] = b_map.get(r["id"], [])
+    else:
+        for r in rows:
+            r["biomarkers"] = []
 
     conn.close()
     return rows
