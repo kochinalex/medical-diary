@@ -1202,13 +1202,24 @@
 
           toggleBiomarkerInputs();
 
-          scanStatus.className = 'text-xs p-2.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-2 block shadow-xs';
-          scanStatus.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> <span class="font-semibold">{{ t.scan_success }}</span>';
+          const hasContent = (data.notes && data.notes.trim()) || 
+                             (data.biomarkers && data.biomarkers.length > 0) || 
+                             (data.provider && data.provider.trim()) || 
+                             (data.facility && data.facility.trim()) ||
+                             (data.title && data.title !== 'Medical Record' && data.title !== fallbackTitle);
+
+          if (hasContent) {
+            scanStatus.className = 'text-xs p-2.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-2 block shadow-xs';
+            scanStatus.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i> <span class="font-semibold">{{ t.scan_success }}</span>';
+          } else {
+            scanStatus.className = 'text-xs p-2.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-2 block shadow-xs';
+            scanStatus.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm"></i> <span>{{ t.scan_error }}</span>';
+          }
         } else {
           const errData = await res.json().catch(() => ({}));
           const errMsg = errData.detail || errData.message || '{{ t.scan_error }}';
-          scanStatus.className = 'text-xs p-2.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-2 block shadow-xs';
-          scanStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm"></i> <span>${errMsg}</span>`;
+          scanStatus.className = 'text-xs p-2.5 rounded-lg bg-rose-100 text-rose-900 border border-rose-300 flex items-center gap-2 block shadow-xs';
+          scanStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-600 text-sm"></i> <span>${errMsg}</span>`;
           // Pre-fill Title with file name so user is not blocked when saving manually
           if (!document.getElementById('recordTitle').value) {
             document.getElementById('recordTitle').value = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ").trim() || 'Medical Record';

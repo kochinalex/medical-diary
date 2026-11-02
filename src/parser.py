@@ -116,7 +116,12 @@ def extract_from_document(file_bytes: bytes, filename: str, mime_type: Optional[
     target_lang_name = LANG_MAP.get((target_lang or "en").lower(), "English")
 
     api_key = os.environ.get("GEMINI_API_KEY")
-    if api_key:
+    is_image = bool(mime_type and mime_type.startswith("image/"))
+
+    if not api_key:
+        if is_image:
+            raise ValueError("GEMINI_API_KEY is missing on the server. Please add your GEMINI_API_KEY in the Render Environment settings.")
+    else:
         try:
             b64_data = base64.b64encode(file_bytes).decode("utf-8")
             prompt = f"""You are an expert clinical document analyzer and medical translator.
@@ -176,10 +181,23 @@ Return ONLY valid JSON.
                                 "notes": data.get("notes", ""),
                                 "biomarkers": data.get("biomarkers", [])
                             }
+                    if is_image:
+                        raise ValueError("Gemini AI was unable to parse clinical data from this image. Please ensure the document photo is clear.")
+                else:
+                    err_msg = res.text
+                    try:
+                        err_msg = res.json().get("error", {}).get("message", res.text)
+                    except Exception:
+                        pass
+                    print(f"Gemini API returned error {res.status_code}: {err_msg}")
+                    if is_image:
+                        raise ValueError(f"Gemini API error ({res.status_code}): {err_msg}")
         except Exception as e:
-            print(f"Gemini document scan error, falling back to offline parser: {e}")
+            print(f"Gemini document scan error: {e}")
+            if is_image:
+                raise
 
-    # Fallback to local offline parser
+    # Fallback to local offline parser for PDFs
     raw_text = ""
     if mime_type == "application/pdf" or filename.lower().endswith(".pdf"):
         raw_text = extract_text_from_pdf(file_bytes)
