@@ -1,18 +1,97 @@
 import sqlite3
 import os
+import collections.abc
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+
+try:
+    import libsql_client
+except ImportError:
+    libsql_client = None
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
 DB_PATH = os.path.join(DATA_DIR, "medical_diary.db")
+TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL", "").strip()
+TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "").strip()
+
+class LibsqlRow(collections.abc.Mapping):
+    def __init__(self, cols, row):
+        self.cols = cols
+        self.row = row
+    def __getitem__(self, key):
+        return self.row[key]
+    def __iter__(self):
+        return iter(self.cols)
+    def __len__(self):
+        return len(self.cols)
+
+class DbAdapter:
+    def __init__(self, turso_url=None, turso_token=None, local_path=None):
+        self.is_turso = bool(turso_url and libsql_client)
+        if self.is_turso:
+            self.client = libsql_client.create_client_sync(url=turso_url, auth_token=turso_token)
+            self._res = None
+            self._idx = 0
+            self.lastrowid = None
+            self.rowcount = None
+        else:
+            self.conn = sqlite3.connect(local_path)
+            self.conn.row_factory = sqlite3.Row
+            self.conn.execute("PRAGMA foreign_keys = ON")
+
+    def cursor(self):
+        return self if self.is_turso else self.conn.cursor()
+
+    def execute(self, sql, params=()):
+        if self.is_turso:
+            p_list = list(params) if params else []
+            res = self.client.execute(sql, p_list)
+            self._res = res
+            self._idx = 0
+            self.lastrowid = res.last_insert_rowid
+            self.rowcount = res.rows_affected
+            return self
+        else:
+            cur = self.conn.cursor()
+            cur.execute(sql, params)
+            return cur
+
+    def fetchone(self):
+        if self.is_turso:
+            if self._res and self._idx < len(self._res.rows):
+                r = self._res.rows[self._idx]
+                self._idx += 1
+                return LibsqlRow(self._res.columns, r)
+            return None
+        raise NotImplementedError
+
+    def fetchall(self):
+        if self.is_turso:
+            rows = []
+            while True:
+                r = self.fetchone()
+                if r is None:
+                    break
+                rows.append(r)
+            return rows
+        raise NotImplementedError
+
+    def commit(self):
+        if not self.is_turso:
+            self.conn.commit()
+
+    def close(self):
+        if self.is_turso:
+            self.client.close()
+        else:
+            self.conn.close()
 
 def get_connection():
+    if TURSO_DATABASE_URL and libsql_client:
+        return DbAdapter(turso_url=TURSO_DATABASE_URL, turso_token=TURSO_AUTH_TOKEN)
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    return DbAdapter(local_path=DB_PATH)
 
 def init_db():
     conn = get_connection()
@@ -111,6 +190,15 @@ def init_db():
             cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN profile_id INTEGER DEFAULT 1")
         if "user_id" not in cols:
             cursor.execute(f"ALTER TABLE {tbl} ADD COLUMN user_id INTEGER DEFAULT 1")
+
+    cursor.execute("PRAGMA table_info(records)")
+    r_cols = [c[1] for c in cursor.fetchall()]
+    if "file_data" not in r_cols:
+        cursor.execute("ALTER TABLE records ADD COLUMN file_data BLOB")
+    if "file_name" not in r_cols:
+        cursor.execute("ALTER TABLE records ADD COLUMN file_name TEXT")
+    if "file_mime" not in r_cols:
+        cursor.execute("ALTER TABLE records ADD COLUMN file_mime TEXT")
 
     cursor.execute("PRAGMA table_info(profiles)")
     prof_cols = [c[1] for c in cursor.fetchall()]
@@ -375,13 +463,14 @@ def clear_all_records(profile_id: Optional[int] = None, user_id: int = 1) -> boo
 
 # Record CRUD with profile filtering
 def add_record(category: str, title: str, event_date: str, profile_id: int = 1,
-               provider: str = "", facility: str = "", notes: str = "", file_path: str = "", user_id: int = 1) -> int:
+               provider: str = "", facility: str = "", notes: str = "", file_path: str = "", user_id: int = 1,
+               file_data: Optional[bytes] = None, file_name: str = "", file_mime: str = "") -> int:
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO records (user_id, profile_id, category, title, event_date, provider, facility, notes, file_path)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (user_id, profile_id, category, title, event_date, provider, facility, notes, file_path))
+    INSERT INTO records (user_id, profile_id, category, title, event_date, provider, facility, notes, file_path, file_data, file_name, file_mime)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (user_id, profile_id, category, title, event_date, provider, facility, notes, file_path, file_data, file_name, file_mime))
     rec_id = cursor.lastrowid
     conn.commit()
     conn.close()

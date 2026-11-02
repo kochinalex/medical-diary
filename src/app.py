@@ -247,16 +247,25 @@ async def create_record(
 
     saved_file_path = ""
     extracted_biomarkers = []
+    file_bytes = None
+    file_name = ""
+    file_mime = ""
 
     if file and file.filename:
+        file_name = file.filename
+        file_mime = file.content_type or "application/octet-stream"
+        file_bytes = await file.read()
         filename = f"{event_date}_{file.filename}"
         saved_file_path = os.path.join(user_upload_dir, filename)
-        with open(saved_file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        try:
+            with open(saved_file_path, "wb") as buffer:
+                buffer.write(file_bytes)
+        except Exception:
+            pass
 
         # If biomarkers_json not already provided, try extracting
         if not biomarkers_json and file.filename.lower().endswith(".pdf"):
-            pdf_text = extract_text_from_pdf(saved_file_path)
+            pdf_text = extract_text_from_pdf(file_bytes)
             parsed = parse_medical_document(pdf_text)
             extracted_biomarkers = parsed.get("biomarkers", [])
 
@@ -269,7 +278,10 @@ async def create_record(
         provider=provider or "",
         facility=facility or "",
         notes=notes or "",
-        file_path=saved_file_path
+        file_path=saved_file_path,
+        file_data=file_bytes,
+        file_name=file_name,
+        file_mime=file_mime
     )
 
     # 1. Save single biomarker input if provided
@@ -356,21 +368,30 @@ async def get_record_file(request: Request, record_id: int):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     record = get_record(record_id, user_id=user_id)
-    if not record or not record.get("file_path"):
-        raise HTTPException(status_code=404, detail="File not found")
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found")
 
-    file_path = record["file_path"]
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found on disk")
+    if record.get("file_data"):
+        filename = record.get("file_name") or "document"
+        media_type = record.get("file_mime") or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        return Response(
+            content=record["file_data"],
+            media_type=media_type,
+            headers={"Content-Disposition": f'inline; filename="{filename}"'}
+        )
 
-    mime_type, _ = mimetypes.guess_type(file_path)
-    filename = os.path.basename(file_path)
-    return FileResponse(
-        file_path,
-        media_type=mime_type or "application/octet-stream",
-        filename=filename,
-        headers={"Content-Disposition": f'inline; filename="{filename}"'}
-    )
+    file_path = record.get("file_path")
+    if file_path and os.path.exists(file_path):
+        mime_type, _ = mimetypes.guess_type(file_path)
+        filename = os.path.basename(file_path)
+        return FileResponse(
+            file_path,
+            media_type=mime_type or "application/octet-stream",
+            filename=filename,
+            headers={"Content-Disposition": f'inline; filename="{filename}"'}
+        )
+
+    raise HTTPException(status_code=404, detail="File not found")
 
 @app.post("/api/records/{record_id}/translate")
 async def translate_record_endpoint(
