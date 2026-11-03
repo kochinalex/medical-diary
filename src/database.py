@@ -613,7 +613,7 @@ def update_record(record_id: int, data: Dict[str, Any], user_id: int = 1) -> boo
     cursor = conn.cursor()
     fields = []
     values = []
-    for k in ["title", "notes", "category", "provider", "facility", "event_date"]:
+    for k in ["title", "notes", "category", "provider", "facility", "event_date", "profile_id"]:
         if k in data and data[k] is not None:
             fields.append(f"{k} = ?")
             values.append(data[k])
@@ -622,6 +622,55 @@ def update_record(record_id: int, data: Dict[str, Any], user_id: int = 1) -> boo
         return False
     values.extend([record_id, user_id])
     cursor.execute(f"UPDATE records SET {', '.join(fields)} WHERE id = ? AND user_id = ?", values)
+    conn.commit()
+    conn.close()
+    return True
+
+def update_record_biomarkers(record_id: int, biomarkers: List[Dict[str, Any]], profile_id: int = 1, user_id: int = 1) -> bool:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM biomarkers WHERE record_id = ? AND user_id = ?", (record_id, user_id))
+    for b in biomarkers:
+        name = str(b.get("name", "")).strip()
+        if not name:
+            continue
+        try:
+            val = float(b.get("value", 0))
+        except (ValueError, TypeError):
+            val = 0.0
+        unit = str(b.get("unit", "")).strip()
+        
+        ref_min = b.get("ref_min")
+        if ref_min is not None and str(ref_min).strip() != "":
+            try:
+                ref_min = float(ref_min)
+            except (ValueError, TypeError):
+                ref_min = None
+        else:
+            ref_min = None
+
+        ref_max = b.get("ref_max")
+        if ref_max is not None and str(ref_max).strip() != "":
+            try:
+                ref_max = float(ref_max)
+            except (ValueError, TypeError):
+                ref_max = None
+        else:
+            ref_max = None
+
+        flag = b.get("flag", "NORMAL")
+        if flag not in ["LOW", "HIGH", "NORMAL"]:
+            flag = "NORMAL"
+            if ref_min is not None and val < ref_min:
+                flag = "LOW"
+            elif ref_max is not None and val > ref_max:
+                flag = "HIGH"
+
+        test_date = b.get("test_date") or datetime.now().strftime("%Y-%m-%d")
+        cursor.execute("""
+        INSERT INTO biomarkers (user_id, profile_id, record_id, name, value, unit, ref_min, ref_max, flag, test_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, profile_id, record_id, name, val, unit, ref_min, ref_max, flag, test_date))
     conn.commit()
     conn.close()
     return True

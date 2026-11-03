@@ -15,7 +15,7 @@ from .auth import (
 from .database import (
     init_db, create_user, get_user_by_email, get_user_by_id,
     get_profiles, get_profile, add_profile, update_profile, delete_profile,
-    get_all_records, get_record, update_record, add_record, add_biomarker, delete_record,
+    get_all_records, get_record, update_record, update_record_biomarkers, add_record, add_biomarker, delete_record,
     get_biomarker_history, get_all_reminders, toggle_reminder,
     add_reminder, delete_reminder, clear_all_records, import_user_health_data
 )
@@ -360,6 +360,62 @@ async def scan_document_endpoint(
         return {"status": "success", "data": extracted}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+@app.get("/api/records/{record_id}")
+async def get_single_record(request: Request, record_id: int):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    rec = get_record(record_id, user_id=user_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="Record not found")
+    # Don't serialize raw bytes in JSON
+    clean_rec = dict(rec)
+    if "file_data" in clean_rec:
+        clean_rec.pop("file_data", None)
+    return {"status": "success", "data": clean_rec}
+
+@app.post("/api/records/{record_id}")
+async def update_record_endpoint(
+    request: Request,
+    record_id: int,
+    category: str = Form(...),
+    title: str = Form(...),
+    event_date: str = Form(...),
+    profile_id: int = Form(1),
+    provider: Optional[str] = Form(""),
+    facility: Optional[str] = Form(""),
+    notes: Optional[str] = Form(""),
+    biomarkers: Optional[str] = Form(None),
+    biomarkers_json: Optional[str] = Form(None)
+):
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    rec = get_record(record_id, user_id=user_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="Record not found")
+
+    update_record(record_id, {
+        "category": category,
+        "title": title,
+        "event_date": event_date,
+        "profile_id": profile_id,
+        "provider": provider,
+        "facility": facility,
+        "notes": notes
+    }, user_id=user_id)
+
+    raw_b = biomarkers or biomarkers_json
+    if raw_b:
+        try:
+            b_list = json.loads(raw_b)
+            if isinstance(b_list, list):
+                update_record_biomarkers(record_id, b_list, profile_id=profile_id, user_id=user_id)
+        except Exception as e:
+            print("Error parsing biomarkers for update:", e)
+
+    return {"status": "success", "message": "Record updated"}
 
 @app.get("/api/records/{record_id}/file")
 async def get_record_file(request: Request, record_id: int):
