@@ -1,4 +1,5 @@
-﻿from datetime import datetime, date
+﻿# -*- coding: utf-8 -*-
+from datetime import datetime, date
 from typing import List, Dict, Any
 
 def calculate_age(birth_date_str: str) -> int:
@@ -26,19 +27,19 @@ def generate_health_advisory(records: List[Dict[str, Any]],
         if age <= 6:
             insights.append({
                 "type": "info",
-                "category": "Pediatric Growth & Vaccines" if lang == "en" else ("Вакцинация и развитие" if lang == "ru" else "Pedijatrijski razvoj i vakcine"),
-                "title": f"Preschool Vaccine Check ({profile.get('name')}, {age} y.o.)" if lang == "en" else (f"Плановые прививки перед школой ({profile.get('name')}, {age} лет)" if lang == "ru" else f"Vakcinacija pre polaska u vrtić/školu ({profile.get('name')}, {age} god.)"),
-                "message": "Preschool booster doses (MMR, DTaP, Polio) are due between ages 4-6." if lang == "en" else ("В возрасте 4-6 лет проводится ревакцинация против кори, паротита, краснухи (КПК) и дифтерии/столбняка." if lang == "ru" else "U uzrastu 4-6 godina preporučuje se revakcinacija (MMR, DiTePer, polio)."),
-                "advice": "Verify preschool immunization records with your pediatrician before kindergarten." if lang == "en" else ("Сверьте календарь прививок с педиатром перед началом учебного года." if lang == "ru" else "Proverite karton vakcinacije kod pedijatra pre upisa u vrtić ili školu.")
+                "category": "Pediatric Growth & Vaccines" if lang == "en" else ("Педиатрия и вакцинация" if lang == "ru" else "Pedijatrijski razvoj i vakcine"),
+                "title": f"Preschool Vaccine Check ({profile.get('name')}, {age} y.o.)" if lang == "en" else (f"Проверка вакцинации перед садом/школой ({profile.get('name')}, {age} лет)" if lang == "ru" else f"Vakcinacija pre polaska u vrtic/skolu ({profile.get('name')}, {age} god.)"),
+                "message": "Preschool booster doses (MMR, DTaP, Polio) are due between ages 4-6." if lang == "en" else ("В возрасте 4-6 лет необходима ревакцинация: корь, паротит, краснуха (КПК) и дифтерия/столбняк/полиомиелит." if lang == "ru" else "U uzrastu 4-6 godina preporucuje se revakcinacija (MMR, DiTePer, polio)."),
+                "advice": "Verify preschool immunization records with your pediatrician before kindergarten." if lang == "en" else ("Сверьте календарь прививок с педиатром перед началом учебного года." if lang == "ru" else "Proverite karton vakcinacije kod pedijatra pre upisa u vrtic ili skolu.")
             })
 
         # Pediatric Dental Checkup
         insights.append({
             "type": "info",
-            "category": "Pediatric Dental" if lang == "en" else ("Детская стоматология" if lang == "ru" else "Dečja stomatologija"),
-            "title": "Bi-annual Pediatric Dental Visit" if lang == "en" else ("Профосмотр у детского стоматолога" if lang == "ru" else "Kontrola dečjeg stomatologa"),
-            "message": "Routine examination and fluoride varnish protect developing primary and secondary teeth." if lang == "en" else ("Осмотр эмали молочных зубов и покрытие фторлаком каждые 6 месяцев." if lang == "ru" else "Redovan pregled mlečnih zuba i zaštita fluorom na svakih 6 meseci."),
-            "advice": "Book dental appointment every 6 months." if lang == "en" else ("Посещайте детского стоматолога дважды в год." if lang == "ru" else "Zakažite stomatološki pregled svakih 6 meseci.")
+            "category": "Pediatric Dental" if lang == "en" else ("Детская стоматология" if lang == "ru" else "Decja stomatologija"),
+            "title": "Bi-annual Pediatric Dental Visit" if lang == "en" else ("Плановый осмотр детского стоматолога" if lang == "ru" else "Kontrola decjeg stomatologa"),
+            "message": "Routine examination and fluoride varnish protect developing primary and secondary teeth." if lang == "en" else ("Осмотр формы прикуса молочных зубов и фторирование эмали каждые 6 месяцев." if lang == "ru" else "Redovan pregled mlecnih zuba i zastita fluorom na svakih 6 meseci."),
+            "advice": "Book dental appointment every 6 months." if lang == "en" else ("Посещайте детского стоматолога каждые 6 месяцев." if lang == "ru" else "Zakazite stomatoloski pregled svakih 6 meseci.")
         })
 
     # --- 2. ADULT ADVISORY RULES ---
@@ -60,14 +61,14 @@ def generate_health_advisory(records: List[Dict[str, Any]],
                     if diff > 0:
                         trend_msg = f" (+{diff:.1f} {unit})"
                 title_en = f"Low Iron Stores (Ferritin: {val} {unit}{trend_msg})"
-                title_ru = f"Дефицит ферритина (уровень: {val} {unit}{trend_msg})"
-                title_sr = f"Nizak nivo feritina (zalihe gvožđa: {val} {unit}{trend_msg})"
+                title_ru = f"Дефицит ферритина (уровень железа: {val} {unit}{trend_msg})"
+                title_sr = f"Nizak nivo feritina (zalihe gvozda: {val} {unit}{trend_msg})"
                 insights.append({
                     "type": "warning",
-                    "category": "Lab Finding" if lang == "en" else ("Анализ крови" if lang == "ru" else "Laboratorijski nalaz"),
+                    "category": "Lab Finding" if lang == "en" else ("Анализы крови" if lang == "ru" else "Laboratorijski nalaz"),
                     "title": title_en if lang == "en" else (title_ru if lang == "ru" else title_sr),
                     "message": f"Ferritin remains below reference range ({latest['ref_min']}-{latest['ref_max']} {unit})." if lang == "en" else (f"Уровень ферритина ниже нормы ({latest['ref_min']}-{latest['ref_max']} {unit})." if lang == "ru" else f"Feritin je ispod referentnog opsega ({latest['ref_min']}-{latest['ref_max']} {unit})."),
-                    "advice": "Take oral iron with Vitamin C to enhance absorption. Avoid coffee, tea, and calcium within 2h. Retest in 8-12 weeks." if lang == "en" else ("Принимайте препараты железа с витамином C. Избегайте кофе, чая и молочных продуктов за 2 часа до/после приема. Повторите анализ через 2-3 месяца." if lang == "ru" else "Uzimajte gvožđe sa vitaminom C radi bolje apsorpcije. Izbegavajte kafu, čaj i mlečne proizvode 2 sata pre i posle. Ponovite analizu za 2-3 meseca.")
+                    "advice": "Take oral iron with Vitamin C to enhance absorption. Avoid coffee, tea, and calcium within 2h. Retest in 8-12 weeks." if lang == "en" else ("Принимайте препараты железа с витамином C для лучшего усвоения. Исключите кофе, чай и кальций за 2 часа до и после. Повторный анализ через 2-3 месяца." if lang == "ru" else "Uzimajte gvozde sa vitaminom C radi bolje apsorpcije. Izbegavajte kafu, caj i mlecne proizvode 2 sata pre i posle. Ponovite analizu za 2-3 meseca.")
                 })
 
             elif name.lower() == "vitamin d" and flag == "LOW":
@@ -76,19 +77,19 @@ def generate_health_advisory(records: List[Dict[str, Any]],
                 title_sr = f"Suboptimalan nivo vitamina D ({val} {unit})"
                 insights.append({
                     "type": "info",
-                    "category": "Lab Finding" if lang == "en" else ("Анализ крови" if lang == "ru" else "Laboratorijski nalaz"),
+                    "category": "Lab Finding" if lang == "en" else ("Анализы крови" if lang == "ru" else "Laboratorijski nalaz"),
                     "title": title_en if lang == "en" else (title_ru if lang == "ru" else title_sr),
-                    "message": f"Below optimal threshold (>30 {unit})." if lang == "en" else (f"Ниже оптимальной нормы (>30 {unit})." if lang == "ru" else f"Ispod optimalnog nivoa (>30 {unit})."),
-                    "advice": "Continue maintenance supplementation (2000-4000 IU daily with meal containing fats)." if lang == "en" else ("Рекомендуется прием поддерживающей дозы (2000-4000 МЕ с жиросодержащей пищей)." if lang == "ru" else "Nastavite suplementaciju (2000-4000 IJ dnevno uz obrok sa zdravim mastima).")
+                    "message": f"Below optimal threshold (>30 {unit})." if lang == "en" else (f"Ниже оптимального уровня (>30 {unit})." if lang == "ru" else f"Ispod optimalnog nivoa (>30 {unit})."),
+                    "advice": "Continue maintenance supplementation (2000-4000 IU daily with meal containing fats)." if lang == "en" else ("Продолжайте прием поддерживающей дозы (2000-4000 МЕ в день с жиросодержащей пищей)." if lang == "ru" else "Nastavite suplementaciju (2000-4000 IJ dnevno uz obrok sa zdravim mastima).")
                 })
 
             elif name.lower() in ["total cholesterol", "ldl"] and flag == "HIGH":
                 insights.append({
                     "type": "warning",
                     "category": "Cardiovascular" if lang == "en" else ("Кардиология" if lang == "ru" else "Kardiologija"),
-                    "title": f"Elevated {name} ({val} {unit})" if lang == "en" else (f"Повышенный {name} ({val} {unit})" if lang == "ru" else f"Povišen {name} ({val} {unit})"),
-                    "message": f"Above recommended baseline ({latest['ref_max']} {unit})." if lang == "en" else (f"Выше нормы ({latest['ref_max']} {unit})." if lang == "ru" else f"Iznad preporučene granice ({latest['ref_max']} {unit})."),
-                    "advice": "Incorporate soluble fiber, reduce saturated fats, maintain 150 min/wk moderate cardio." if lang == "en" else ("Увеличьте потребление клетчатки, ограничьте трансжиры, поддерживайте кардионагрузки." if lang == "ru" else "Povećajte unos rastvorljivih vlakana, smanjite zasićene masti, bavite se umerenom aerobnom aktivnošću.")
+                    "title": f"Elevated {name} ({val} {unit})" if lang == "en" else (f"Повышенный {name} ({val} {unit})" if lang == "ru" else f"Povisen {name} ({val} {unit})"),
+                    "message": f"Above recommended baseline ({latest['ref_max']} {unit})." if lang == "en" else (f"Выше нормы ({latest['ref_max']} {unit})." if lang == "ru" else f"Iznad preporucene granice ({latest['ref_max']} {unit})."),
+                    "advice": "Incorporate soluble fiber, reduce saturated fats, maintain 150 min/wk moderate cardio." if lang == "en" else ("Увеличьте потребление растворимой клетчатки, сократите насыщенные жиры, поддерживайте 150 мин аэробных нагрузок в неделю." if lang == "ru" else "Povecajte unos rastvorljivih vlakana, smanjite zasicene masti, bavite se umerenom aerobnom aktivnoscu.")
                 })
 
         # Adult Skin & Dental check reminders
@@ -96,10 +97,10 @@ def generate_health_advisory(records: List[Dict[str, Any]],
         if mole_rem and not mole_rem.get("completed", 0):
             insights.append({
                 "type": "info",
-                "category": "Preventive Screening" if lang == "en" else ("Профосмотр" if lang == "ru" else "Preventivni pregled"),
-                "title": "Annual Full-Body Skin Examination" if lang == "en" else ("Ежегодный осмотр родинок (дерматоскопия)" if lang == "ru" else "Godišnji dermoskopski pregled mladeža"),
-                "message": "Routine surveillance is recommended following past dysplastic mole removal." if lang == "en" else ("Регулярное наблюдение за родинками после удаления диспластического невуса." if lang == "ru" else "Preporučuje se redovna kontrola kože nakon ranijeg uklanjanja mladeža."),
-                "advice": "Use ABCDE rules for self-examination and schedule full-body dermoscopy." if lang == "en" else ("Следите за изменениями по шкале ABCDE и посетите дерматолога." if lang == "ru" else "Pratite ABCDE pravilo za samopregled i zakažite dermoskopiju.")
+                "category": "Preventive Screening" if lang == "en" else ("Онкоскрининг" if lang == "ru" else "Preventivni pregled"),
+                "title": "Annual Full-Body Skin Examination" if lang == "en" else ("Ежегодный осмотр родинок (дерматоскопия)" if lang == "ru" else "Godisnji dermoskopski pregled mladeza"),
+                "message": "Routine surveillance is recommended following past dysplastic mole removal." if lang == "en" else ("Регулярное наблюдение за кожей после удаления диспластических невусов." if lang == "ru" else "Preporucuje se redovna kontrola koze nakon ranijeg uklanjanja mladeza."),
+                "advice": "Use ABCDE rules for self-examination and schedule full-body dermoscopy." if lang == "en" else ("Следите за родинками по правилу ABCDE и запланируйте дерматоскопию." if lang == "ru" else "Pratite ABCDE pravilo za samopregled i zakazite dermoskopiju.")
             })
 
     # --- 3. COMMON CALENDAR ALERTS ---
@@ -146,37 +147,39 @@ def generate_doctor_brief(records: List[Dict[str, Any]],
                           lang: str = "en") -> str:
     lines = []
     if lang == "ru":
-        lines.append(f"МЕДИЦИНСКАЯ ВЫПИСКА: {profile.get('name', 'Пациент')}")
-        lines.append(f"Дата рожд: {profile.get('birth_date', 'Н/Д')} | Роль: {profile.get('role', 'Член семьи')} | Группа крови: {profile.get('blood_type', 'Н/Д')}")
+        lines.append(f"МЕДИЦИНСКАЯ ВЫПИСКА ДЛЯ ВРАЧА: {profile.get('name', 'Пациент')}")
+        lines.append(f"Дата рожд.: {profile.get('birth_date', 'Н/Д')} | Роль: {profile.get('role', 'Член семьи')} | Группа крови: {profile.get('blood_type', 'Н/Д')}")
         lines.append(f"Аллергии: {profile.get('allergies', 'Не выявлено')}")
         lines.append(f"Хронические диагнозы: {profile.get('chronic_conditions', 'Нет')}")
-        lines.append(f"Текущая терапия: {profile.get('current_medications', 'Нет')}")
+        lines.append(f"Принимаемые препараты: {profile.get('current_medications', 'Нет')}")
         lines.append("-" * 40)
-        lines.append("ПОСЛЕДНИЕ АНАЛИЗЫ:")
+        lines.append("ПОСЛЕДНИЕ ПОКАЗАТЕЛИ АНАЛИЗОВ:")
         for b_name, history in biomarkers.items():
             if history:
                 latest = history[-1]
-                lines.append(f"  * {b_name}: {latest['value']} {latest['unit']} ({latest['flag']}) от {latest['test_date']}")
+                flag_str = f" ({latest['flag']})" if latest.get('flag') and latest['flag'] != 'NORMAL' else ""
+                lines.append(f"  * {b_name}: {latest['value']} {latest['unit']}{flag_str} от {latest['test_date']}")
         lines.append("-" * 40)
-        lines.append("СОБЫТИЯ ЗА ПОСЛЕДНИЙ ГОД:")
+        lines.append("ПОСЛЕДНИЕ СОБЫТИЯ И ОБРАЩЕНИЯ:")
         for ev in records[:4]:
-            lines.append(f"  * [{ev['event_date']}] {ev['title']} ({ev.get('provider') or 'Самоотчет'}): {ev.get('notes', '')[:70]}...")
+            lines.append(f"  * [{ev['event_date']}] {ev['title']} ({ev.get('provider') or 'Пациент'}): {ev.get('notes', '')[:70]}...")
     elif lang == "sr":
-        lines.append(f"LEKARSKI SAŽETAK: {profile.get('name', 'Pacijent')}")
-        lines.append(f"Datum rođenja: {profile.get('birth_date', 'N/A')} | Uloga: {profile.get('role', 'Član porodice')} | Krvna grupa: {profile.get('blood_type', 'N/A')}")
-        lines.append(f"Poznate alergije: {profile.get('allergies', 'Nema zabeleženih')}")
-        lines.append(f"Hronične dijagnoze: {profile.get('chronic_conditions', 'Nema')}")
+        lines.append(f"LEKARSKI SAZETAK: {profile.get('name', 'Pacijent')}")
+        lines.append(f"Datum rodenja: {profile.get('birth_date', 'N/A')} | Uloga: {profile.get('role', 'Clan porodice')} | Krvna grupa: {profile.get('blood_type', 'N/A')}")
+        lines.append(f"Poznate alergije: {profile.get('allergies', 'Nema zabelezenih')}")
+        lines.append(f"Hronicne dijagnoze: {profile.get('chronic_conditions', 'Nema')}")
         lines.append(f"Redovna terapija: {profile.get('current_medications', 'Nema')}")
         lines.append("-" * 40)
         lines.append("POSLEDNJI NALAZI:")
         for b_name, history in biomarkers.items():
             if history:
                 latest = history[-1]
-                lines.append(f"  * {b_name}: {latest['value']} {latest['unit']} ({latest['flag']}) - {latest['test_date']}")
+                flag_str = f" ({latest['flag']})" if latest.get('flag') and latest['flag'] != 'NORMAL' else ""
+                lines.append(f"  * {b_name}: {latest['value']} {latest['unit']}{flag_str} - {latest['test_date']}")
         lines.append("-" * 40)
-        lines.append("PRETHODNI PREGLEDI I DOGAĐAJI:")
+        lines.append("PRETHODNI PREGLEDI I DOGADAJI:")
         for ev in records[:4]:
-            lines.append(f"  * [{ev['event_date']}] {ev['title']} ({ev.get('provider') or 'Lični unos'}): {ev.get('notes', '')[:70]}...")
+            lines.append(f"  * [{ev['event_date']}] {ev['title']} ({ev.get('provider') or 'Licni unos'}): {ev.get('notes', '')[:70]}...")
     else:
         lines.append(f"PATIENT BRIEF: {profile.get('name', 'Patient')}")
         lines.append(f"DOB: {profile.get('birth_date', 'N/A')} | Role: {profile.get('role', 'Family Member')} | Blood Group: {profile.get('blood_type', 'N/A')}")
@@ -188,7 +191,8 @@ def generate_doctor_brief(records: List[Dict[str, Any]],
         for b_name, history in biomarkers.items():
             if history:
                 latest = history[-1]
-                lines.append(f"  * {b_name}: {latest['value']} {latest['unit']} ({latest['flag']}) on {latest['test_date']}")
+                flag_str = f" ({latest['flag']})" if latest.get('flag') and latest['flag'] != 'NORMAL' else ""
+                lines.append(f"  * {b_name}: {latest['value']} {latest['unit']}{flag_str} on {latest['test_date']}")
         lines.append("-" * 40)
         lines.append("RECENT CLINICAL EVENTS (Past 12 Months):")
         for ev in records[:4]:
